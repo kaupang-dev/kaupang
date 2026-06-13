@@ -1,0 +1,16 @@
+{
+  "services": {
+    "saga-store": {
+      "image": "postgres:16-alpine",
+      "ports": ["5432:5432"],
+      "volumes": ["sagadata:/var/lib/postgresql/data"],
+      "env": { "POSTGRES_USER": "skald", "POSTGRES_PASSWORD": "skald", "POSTGRES_DB": "saga" },
+      "healthcheck": { "test": ["CMD-SHELL", "pg_isready -U skald"], "interval": "5s", "retries": 5 }
+    },
+    "rune-cache": {
+      "image": "redis:7-alpine",
+      "ports": ["6379:6379"],
+      "healthcheck": { "test": ["CMD", "redis-cli", "ping"], "interval": "5s", "retries": 5 }
+    }
+  }
+}

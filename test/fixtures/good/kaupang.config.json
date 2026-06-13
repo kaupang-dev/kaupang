@@ -1,0 +1,16 @@
+{
+  "environments": "envs",
+  "project": "longhall",
+  "defaultBackend": "compose",
+  "targets": {
+    "asgard": { "backend": "swarm", "dockerContext": "prod" }
+  },
+  "pipelines": {
+    "voyage": {
+      "steps": {
+        "forge": { "run": "echo forging" },
+        "landing": { "up": "market", "needs": "forge" }
+      }
+    }
+  }
+}

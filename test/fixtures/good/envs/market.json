@@ -1,0 +1,7 @@
+{
+  "dependsOn": "saga",
+  "services": {
+    "web": { "image": "web", "dependsOn": "runecarver" },
+    "runecarver": "migrate"
+  }
+}

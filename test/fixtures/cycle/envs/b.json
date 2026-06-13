@@ -1,0 +1,4 @@
+{
+  "dependsOn": "a",
+  "services": { "s": "image-b" }
+}

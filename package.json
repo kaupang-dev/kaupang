@@ -1,0 +1,67 @@
+{
+  "name": "kaupang",
+  "version": "0.1.0",
+  "description": "The trading hub for your deploys: gather services, pin them into portable cargo, and ship to any target (Docker Compose, Swarm, or Kubernetes) — same command on your laptop and in CI. (Old Norse: a Viking trading hub.)",
+  "license": "MIT",
+  "author": "Andreas Quist Batista",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaupang-dev/kaupang.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kaupang-dev/kaupang/issues"
+  },
+  "homepage": "https://github.com/kaupang-dev/kaupang#readme",
+  "type": "module",
+  "bin": {
+    "kaupang": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "jiti src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "start": "node dist/cli.js"
+  },
+  "dependencies": {
+    "citty": "0.1.6",
+    "consola": "3.4.0",
+    "execa": "9.5.2",
+    "jiti": "2.4.2",
+    "tar": "7.5.16",
+    "yaml": "2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.5",
+    "@vitest/coverage-v8": "4.1.8",
+    "tsup": "8.3.5",
+    "typescript": "5.7.3",
+    "vitest": "4.1.8"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "airgap",
+    "bundle",
+    "cli",
+    "compose",
+    "deploy",
+    "devops",
+    "docker",
+    "kubernetes",
+    "oci",
+    "swarm"
+  ]
+}

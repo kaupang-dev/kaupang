@@ -1,0 +1,12 @@
+{
+  "name": "longhall-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Tiny dependency-free demo service for the kaupang longhall example.",
+  "scripts": {
+    "start": "node server.js server",
+    "migrate": "node server.js migrate",
+    "worker": "node server.js worker"
+  }
+}

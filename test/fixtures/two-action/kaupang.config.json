@@ -1,0 +1,11 @@
+{
+  "environments": "envs",
+  "project": "two-action",
+  "pipelines": {
+    "bad": {
+      "steps": {
+        "wrong": { "up": "market", "down": "market" }
+      }
+    }
+  }
+}
