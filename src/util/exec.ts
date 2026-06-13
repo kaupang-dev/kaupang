@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { delimiter, join } from "node:path";
 import { execa } from "execa";
 import { consola } from "consola";
 
@@ -42,14 +44,27 @@ export async function run(
   });
 }
 
-/** True if a binary is resolvable on PATH. */
+/**
+ * True if a binary is resolvable on PATH (or is an existing absolute/relative path).
+ * Resolved by scanning PATH rather than spawning `<tool> --version` — the latter is
+ * unreliable cross-tool (`kubectl --version` is an unknown flag) and cross-platform
+ * (on Windows a missing binary and a bad flag both surface as a generic exit 1).
+ */
 export async function hasBinary(file: string): Promise<boolean> {
-  try {
-    await execa(file, ["--version"], { stdio: "ignore" });
-    return true;
-  } catch {
-    return false;
+  if (file.includes("/") || file.includes("\\")) {
+    return existsSync(file) || existsSync(`${file}.exe`);
   }
+  const dirs = (process.env.PATH ?? "").split(delimiter).filter(Boolean);
+  const exts =
+    process.platform === "win32"
+      ? (process.env.PATHEXT ?? ".EXE;.CMD;.BAT;.COM").split(";")
+      : [""];
+  for (const dir of dirs) {
+    for (const ext of exts) {
+      if (existsSync(join(dir, `${file}${ext}`))) return true;
+    }
+  }
+  return false;
 }
 
 /** Run a shell command (used for lifecycle hooks). Honors dry-run. */

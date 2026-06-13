@@ -65,5 +65,20 @@ jobs:
       - run: npm run build
       - run: bash scripts/integration-oras.sh
 
-  # TODO (final leg, once these are green in CI):
-  #   k8s: kind cluster → kaupang up --backend kubernetes → kubectl rollout → down
+  k8s:
+    name: k8s · kind · kubectl apply
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - uses: azure/setup-kubectl@v4
+      - name: Install kind
+        run: |
+          curl -sSLo ./kind https://kind.sigs.k8s.io/dl/v0.23.0/kind-linux-amd64
+          chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind
+      - run: npm ci
+      - run: npm run build
+      - run: bash scripts/integration-k8s.sh

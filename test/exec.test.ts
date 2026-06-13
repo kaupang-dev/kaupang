@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { parseDuration } from "../src/util/exec.js";
+import { hasBinary, parseDuration } from "../src/util/exec.js";
+
+describe("hasBinary", () => {
+  it("returns true for a binary that is on PATH", async () => {
+    // node itself is always present.
+    expect(await hasBinary(process.execPath)).toBe(true);
+  });
+
+  it("returns false only when the binary cannot be spawned (ENOENT)", async () => {
+    expect(await hasBinary("kaupang-definitely-not-a-real-binary-xyz")).toBe(false);
+  });
+});
 
 describe("parseDuration", () => {
   it("parses explicit units", () => {

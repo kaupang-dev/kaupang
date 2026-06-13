@@ -29,21 +29,25 @@ deploys the same definitions to **Docker Compose, Docker Swarm, or Kubernetes**.
 
 ---
 
-## ⚠️ Verification status — READ THIS FIRST
+## Verification status — READ THIS FIRST
 
-The single most important thing to know: **the daemon/registry-dependent paths have
-never been run against real infrastructure.** Development happened in a sandbox with
-no Docker daemon, no external registry, and restricted network.
+**The original "never run against real infrastructure" gap is now CLOSED.** Every
+deploy path kaupang ships — compose, swarm, kubernetes, `build`/`--push`, digest
+resolution, and `oras` bundle/catalog over OCI — has been exercised end-to-end against
+a real Docker daemon + registry (and a `kind` cluster for k8s). Early development
+happened in a daemon-less sandbox; that's history. Keep live paths covered by the
+integration scripts as you change them.
 
 **Tested and trusted:**
 - `tsc --noEmit` typechecks clean; `tsup` builds clean.
-- **Vitest suite (`npm test`, 120 tests in `test/`)** covering the pure logic below
+- **Vitest suite (`npm test`, 125 tests in `test/`)** covering the pure logic below
   **plus the execution seam** — runs fully offline, no daemon/registry. `npm run
   coverage` for the report (pure-logic + deploy/pipeline layers are high, the
   remaining gaps are the live IO calls the integration job covers).
-- **Integration — VERIFIED live (compose, build, swarm, oras).** Four scripts under
-  `scripts/integration-*.sh` (run by `.github/workflows/integration.yml` and locally
-  on real Docker), each against a throwaway `registry:2`. Fixture: `test/integration/`.
+- **Integration — VERIFIED live (compose, build, swarm, oras, k8s).** Five scripts
+  under `scripts/integration-*.sh` (run by `.github/workflows/integration.yml` and
+  locally on real Docker), each self-contained + self-cleaning. Fixture:
+  `test/integration/`.
   - `integration-compose.sh`: build → push → **digest resolution** (`docker buildx
     imagetools inspect`, incl. insecure-localhost) → pinned `compose up --wait` →
     `/health` → ledger digest assert → `compose down`.
@@ -54,7 +58,9 @@ no Docker daemon, no external registry, and restricted network.
   - `integration-oras.sh`: bundle-over-OCI round trip (`bundle --push` → `up --bundle`,
     i.e. oras push then pull + deploy) **and** an `{ type: "oci" }` catalog source —
     both needing `--plain-http` for the local registry (`util/registry.ts`).
-  - All green on real Docker Desktop 29.x as of 2026-06-13.
+  - `integration-k8s.sh`: `kind` cluster → `up --backend kubernetes` (`kubectl apply`)
+    → `rollout status` → serve via port-forward → `down` (delete namespace).
+  - All green on real Docker Desktop 29.x + kind v0.23 as of 2026-06-13.
 - **Execution seam:** `deployPlan` / `runPipeline` / `runHooks` take an injectable
   `Executor` (default `defaultExecutor` = real execa). Tests inject a recording
   fake (`test/helpers/executor.ts`) to assert *which* commands run, *in what order*,
@@ -69,17 +75,14 @@ no Docker daemon, no external registry, and restricted network.
 - Catalog `file` source; HTTP/service sources via localhost stubs.
 
 **Verified live:** compose `up --wait`/`down`, `docker stack deploy`/`stack rm` (swarm),
-`kaupang build` + `--push`, digest resolution + pinning, ledger recording, **`oras`
-push/pull** (bundle-over-OCI + OCI catalog source, with `--plain-http`) — see the
-integration scripts above.
+`kubectl apply`/namespace-delete on a `kind` cluster (kubernetes), `kaupang build` +
+`--push`, digest resolution + pinning, ledger recording, and **`oras` push/pull**
+(bundle-over-OCI + OCI catalog source, with `--plain-http`) — see the integration
+scripts above.
 
-**NOT verified yet (implemented, typechecks, but never run live):**
-- `kubectl apply` (kubernetes backend on a real cluster) — `kind` job not built yet.
-  This is now the *only* remaining live-path gap.
-
-**The compose path is proven; swarm / k8s / oras / `kaupang build` are the remaining
-integration gaps** (the next jobs to add to `integration.yml`). Treat those live paths
-as unproven until exercised on real infra.
+**No remaining live-path gaps.** Every backend and IO path has been exercised on real
+infra. What's left for the OSS release is *scaffolding*, not verification: `CONTRIBUTING`,
+`CHANGELOG`, semver discipline — then flip the repo public + `npm publish`.
 
 ---
 
@@ -275,27 +278,28 @@ the execution boundary so it can be faked.
    only wraps the layer that runs their emitted actions. (CLI command wrappers
    `up/down/build/rollback` still call the real `run` directly; their dry-run paths
    are covered, live execution is the integration job's job.)
-3. 🟡 **Integration (real infra, separate CI job) — compose + build + swarm + oras
-   DONE; only k8s pending.** `scripts/integration-{compose,build,swarm,oras}.sh` +
-   `.github/workflows/integration.yml` (4 jobs) stand up a local `registry:2` and run
-   the real `up`/`down`/`build`/`bundle` flows against Docker with digest resolution
-   and OCI push/pull — **all green locally on Docker Desktop 29.x**. Same scripts run
-   in CI (ubuntu, Docker preinstalled; oras via `oras-project/setup-oras`). Last leg to
-   add: k8s via `kind`.
+3. ✅ **Integration (real infra, separate CI job) — DONE, all 5 legs.**
+   `scripts/integration-{compose,build,swarm,oras,k8s}.sh` +
+   `.github/workflows/integration.yml` (5 jobs) run the real `up`/`down`/`build`/`bundle`
+   flows against Docker (+ `kind` for k8s) with digest resolution and OCI push/pull —
+   **all green locally on Docker Desktop 29.x**. Same scripts run in CI (ubuntu, Docker
+   preinstalled; oras via `oras-project/setup-oras`, kind via the binary + `setup-kubectl`).
 
 CI: ✅ **fast job** — `.github/workflows/ci.yml` runs typecheck + `npm test` + build on
 Node 20 & 22, then a `--dry-run` matrix over every `examples/` folder (guards against
 example rot; hermetic, no daemon); `dist/` is passed from the test job to the examples
-job as an artifact. ✅ **integration (compose + build + swarm + oras)** —
-`.github/workflows/integration.yml` runs the four `scripts/integration-*.sh` on Docker
-(main + PRs). **Still pending:** the k8s (`kind`) leg.
+job as an artifact. ✅ **integration (all 5 legs)** —
+`.github/workflows/integration.yml` runs the five `scripts/integration-*.sh` on Docker
+(main + PRs). No remaining live-path gaps.
 
 ---
 
 ## Path to an OSS npm release (`kaupang` is free on npm)
 
-In rough priority: (1) real integration testing per above; (2) the Vitest suite + CI;
-(3) `LICENSE`, `CONTRIBUTING`, `CHANGELOG`, semver discipline, `package.json` publish
-fields (`files`, `repository`, `prepublishOnly`); (4) sharpen or explicitly scope-down
-the k8s backend so expectations are clear; (5) position vs Kamal/Compose/Helm — lead
-with the differentiator: multi-backend + portable airgappable bundles + solutions.
+Done: ✅ Vitest suite + fast CI, ✅ real integration testing (all 5 legs), ✅ `LICENSE`
+(MIT) + `package.json` publish fields (`license`/`author`/`repository`/`bugs`/`homepage`).
+Remaining, in rough priority: (1) `CONTRIBUTING` + `CHANGELOG` + semver discipline +
+`prepublishOnly`; (2) sharpen or explicitly scope-down the k8s backend so expectations
+are clear; (3) position vs Kamal/Compose/Helm — lead with the differentiator:
+multi-backend + portable airgappable bundles + solutions; (4) flip the repo public +
+`npm publish`.
