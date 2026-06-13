@@ -37,10 +37,16 @@ no Docker daemon, no external registry, and restricted network.
 
 **Tested and trusted:**
 - `tsc --noEmit` typechecks clean; `tsup` builds clean.
-- **Vitest suite (`npm test`, 107 tests in `test/`)** covering the pure logic below
+- **Vitest suite (`npm test`, 120 tests in `test/`)** covering the pure logic below
   **plus the execution seam** — runs fully offline, no daemon/registry. `npm run
-  coverage` for the report (~73% overall; pure-logic + deploy/pipeline layers are
-  high, the remaining gaps are the live IO calls the integration job covers).
+  coverage` for the report (pure-logic + deploy/pipeline layers are high, the
+  remaining gaps are the live IO calls the integration job covers).
+- **Compose integration — VERIFIED live.** `scripts/integration-compose.sh` (run by
+  `.github/workflows/integration.yml`, and locally on a real Docker) does the full
+  loop against a throwaway `registry:2`: build → push → **digest resolution**
+  (`docker buildx imagetools inspect`, incl. insecure-localhost) → pinned `compose up
+  --wait` → `/health` → ledger digest assert → `compose down`. Green on real Docker
+  Desktop 29.x as of 2026-06-13. Fixture: `test/integration/`.
 - **Execution seam:** `deployPlan` / `runPipeline` / `runHooks` take an injectable
   `Executor` (default `defaultExecutor` = real execa). Tests inject a recording
   fake (`test/helpers/executor.ts`) to assert *which* commands run, *in what order*,
@@ -54,15 +60,20 @@ no Docker daemon, no external registry, and restricted network.
   JSON tags (verified via the `examples/` fixtures and ad-hoc temp repos).
 - Catalog `file` source; HTTP/service sources via localhost stubs.
 
-**NOT verified (implemented, typechecks, but never run live):**
-- Actual `docker compose up/build/push`, `docker stack deploy`, `kubectl apply`.
-- Image digest resolution (`docker buildx imagetools inspect`).
-- `oras push`/`pull` for the OCI catalog source and bundle-over-OCI.
-- `kind`/real cluster for the Kubernetes backend (which is intentionally minimal:
-  Namespace + Deployment + Service per service; no Ingress/PVC/ConfigMap/HPA/CRD).
+**Verified live:** `docker compose up --wait` / `compose down`, digest resolution +
+pinning, ledger recording (compose backend) — see the integration script above.
 
-**Therefore the #1 priority before any release is real integration testing** (see
-Testing plan below). Treat live paths as unproven until exercised on real infra.
+**NOT verified yet (implemented, typechecks, but never run live):**
+- `kaupang build` (compose `docker compose build`) — the integration builds the image
+  directly with `docker build`; the CLI's own build command isn't exercised yet.
+- `docker stack deploy` (swarm) and `kubectl apply` (kubernetes backend on a cluster).
+- `oras push`/`pull` for the OCI catalog source and bundle-over-OCI.
+- `kind`/real cluster for the Kubernetes backend (intentionally minimal: Namespace +
+  Deployment + Service per service; no Ingress/PVC/ConfigMap/HPA/CRD).
+
+**The compose path is proven; swarm / k8s / oras / `kaupang build` are the remaining
+integration gaps** (the next jobs to add to `integration.yml`). Treat those live paths
+as unproven until exercised on real infra.
 
 ---
 
@@ -251,16 +262,20 @@ the execution boundary so it can be faked.
    only wraps the layer that runs their emitted actions. (CLI command wrappers
    `up/down/build/rollback` still call the real `run` directly; their dry-run paths
    are covered, live execution is the integration job's job.)
-3. **Integration (real infra, separate CI job):** GitHub Actions with Docker — stand
-   up a local `registry:2`, build+push a tiny image, `up`/`down` against local Docker,
-   exercise digest resolution, `oras` catalog + bundle-over-OCI, swarm via
-   `docker swarm init`, and k8s via `kind`. This is what retires the verification gap.
+3. 🟡 **Integration (real infra, separate CI job) — compose leg DONE; rest pending.**
+   `scripts/integration-compose.sh` + `.github/workflows/integration.yml` stand up a
+   local `registry:2`, build+push a tiny image, and run `up`/`down` against real Docker
+   with digest resolution — **green locally on Docker Desktop 29.x**. Same script runs
+   in CI (ubuntu, Docker preinstalled). Still to add as further jobs/scripts: `kaupang
+   build`, `oras` catalog + bundle-over-OCI, swarm via `docker swarm init`, k8s via
+   `kind`. Each new leg retires another slice of the verification gap.
 
-CI: ✅ **fast job built** — `.github/workflows/ci.yml` runs typecheck + `npm test` +
-build on Node 20 & 22, then a `--dry-run` matrix over every `examples/` folder (guards
-against example rot; hermetic, no daemon). The built `dist/` is passed from the test
-job to the examples job as an artifact. **Still pending:** the Docker-backed integration
-job (step 3 above) — local `registry:2`, `kind`, swarm — billed to a separate workflow.
+CI: ✅ **fast job** — `.github/workflows/ci.yml` runs typecheck + `npm test` + build on
+Node 20 & 22, then a `--dry-run` matrix over every `examples/` folder (guards against
+example rot; hermetic, no daemon); `dist/` is passed from the test job to the examples
+job as an artifact. ✅ **integration (compose leg)** — `.github/workflows/integration.yml`
+runs `scripts/integration-compose.sh` on Docker (main + PRs). **Still pending:** swarm /
+k8s (`kind`) / oras / `kaupang build` legs.
 
 ---
 

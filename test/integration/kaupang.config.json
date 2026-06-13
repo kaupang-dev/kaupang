@@ -1,0 +1,6 @@
+{
+  "environments": "./environments",
+  "project": "kaupang-itest",
+  "dockerRepository": "localhost:5000",
+  "defaultPull": "missing"
+}

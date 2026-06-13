@@ -1,0 +1,31 @@
+name: Integration
+
+# Heavier, Docker-backed checks that exercise the live paths the fast CI can't.
+# Runs on main + PRs (and on demand). Ubuntu runners ship Docker + buildx.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    name: compose · registry · digest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: bash scripts/integration-compose.sh
+
+  # TODO (next, once the compose job is green locally + in CI):
+  #   swarm: docker swarm init → kaupang up --backend swarm → stack ls → down
+  #   oras:  push/pull a bundle + catalog over OCI to the local registry
+  #   k8s:   kind cluster → kaupang up --backend kubernetes → kubectl rollout → down

@@ -1,0 +1,14 @@
+{
+  "services": {
+    "app": {
+      "image": "kaupang-itest:v1",
+      "ports": ["18080:3000"],
+      "healthcheck": {
+        "test": ["CMD", "wget", "-qO-", "http://localhost:3000/health"],
+        "interval": "3s",
+        "timeout": "2s",
+        "retries": 10
+      }
+    }
+  }
+}
