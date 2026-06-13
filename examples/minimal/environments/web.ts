@@ -1,4 +1,4 @@
-import { defineEnvironment } from "kaupang";
+import { defineEnvironment } from "@kaupang/core";
 
 // The environment name defaults to the file name ("web").
 export default defineEnvironment({

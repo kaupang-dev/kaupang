@@ -1,0 +1,39 @@
+{
+  "name": "@kaupang/cli",
+  "version": "0.1.0",
+  "description": "The kaupang CLI — the `kaupang` binary. Deploy the same definitions to Docker Compose, Swarm, or Kubernetes from one config.",
+  "license": "MIT",
+  "author": "Andreas Quist Batista",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaupang-dev/kaupang.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/kaupang-dev/kaupang/issues"
+  },
+  "homepage": "https://github.com/kaupang-dev/kaupang#readme",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "kaupang": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@kaupang/core": "^0.1.0",
+    "citty": "0.1.6",
+    "consola": "3.4.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

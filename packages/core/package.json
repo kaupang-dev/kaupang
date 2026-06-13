@@ -1,0 +1,50 @@
+{
+  "name": "@kaupang/core",
+  "version": "0.1.0",
+  "description": "kaupang's engine + config-authoring API (defineConfig/defineEnvironment/secret/use + types). The CLI lives in @kaupang/cli.",
+  "license": "MIT",
+  "author": "Andreas Quist Batista",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaupang-dev/kaupang.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/kaupang-dev/kaupang/issues"
+  },
+  "homepage": "https://github.com/kaupang-dev/kaupang#readme",
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "consola": "3.4.0",
+    "execa": "9.5.2",
+    "jiti": "2.4.2",
+    "tar": "7.5.16",
+    "yaml": "2.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

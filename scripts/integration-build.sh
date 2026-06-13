@@ -26,7 +26,7 @@ cleanup() {
 trap cleanup EXIT
 
 step "ensure the CLI is built"
-[ -f dist/cli.js ] || npm run build
+[ -f packages/cli/dist/cli.js ] || npm run build
 
 step "start a throwaway registry at ${REGISTRY}"
 docker rm -f "$REG_NAME" >/dev/null 2>&1 || true
@@ -42,12 +42,12 @@ pass "registry up"
 docker rmi -f "$IMAGE" >/dev/null 2>&1 || true
 
 step "kaupang build — docker compose build of the local ./app context"
-node dist/cli.js build built --cwd "$FIXTURE"
+node packages/cli/dist/cli.js build built --cwd "$FIXTURE"
 docker image inspect "$IMAGE" >/dev/null
 pass "image built: ${IMAGE}"
 
 step "kaupang build --push — build then push to the registry"
-node dist/cli.js build built --push --cwd "$FIXTURE"
+node packages/cli/dist/cli.js build built --push --cwd "$FIXTURE"
 curl -fsS --max-time 5 "http://${REGISTRY}/v2/${NAME}/tags/list" | grep -q '"v1"'
 pass "image present in registry"
 

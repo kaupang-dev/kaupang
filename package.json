@@ -1,7 +1,7 @@
 {
-  "name": "kaupang",
+  "name": "kaupang-monorepo",
   "version": "0.1.0",
-  "description": "The trading hub for your deploys: gather services, pin them into portable cargo, and ship to any target (Docker Compose, Swarm, or Kubernetes) — same command on your laptop and in CI. (Old Norse: a Viking trading hub.)",
+  "description": "Monorepo for kaupang — the trading hub for your deploys. Publishes @kaupang/core (engine + authoring API) and @kaupang/cli (the `kaupang` binary).",
   "license": "MIT",
   "author": "Andreas Quist Batista",
   "repository": {
@@ -13,34 +13,16 @@
   },
   "homepage": "https://github.com/kaupang-dev/kaupang#readme",
   "type": "module",
-  "bin": {
-    "kaupang": "./dist/cli.js"
-  },
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "files": [
-    "dist"
+  "private": true,
+  "workspaces": [
+    "packages/*"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "jiti src/cli.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "coverage": "vitest run --coverage",
-    "start": "node dist/cli.js"
-  },
-  "dependencies": {
-    "citty": "0.1.6",
-    "consola": "3.4.0",
-    "execa": "9.5.2",
-    "jiti": "2.4.2",
-    "tar": "7.5.16",
-    "yaml": "2.7.0"
+    "build": "npm run build -w @kaupang/core && npm run build -w @kaupang/cli",
+    "typecheck": "npm run typecheck -w @kaupang/core && npm run typecheck -w @kaupang/cli",
+    "test": "npm run test -w @kaupang/core",
+    "coverage": "npm run coverage -w @kaupang/core",
+    "dev": "jiti packages/cli/src/cli.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.5",

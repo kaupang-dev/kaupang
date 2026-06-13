@@ -1,4 +1,4 @@
-import { defineEnvironment, use } from "kaupang";
+import { defineEnvironment, use } from "@kaupang/core";
 
 // Fast lookups — the rune cache.
 export default defineEnvironment({

@@ -32,12 +32,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
-      # Hand the built CLI to the examples job so it need not rebuild.
-      - if: matrix.node == '20'
-        uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist
 
   # Guard against example rot: every example must load and render a plan offline.
   # --dry-run touches no daemon, so this is fast and hermetic.
@@ -64,10 +58,6 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-      # Runtime deps (citty, jiti, yaml, …) are needed to run dist/cli.js.
       - run: npm ci
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist
-      - run: node dist/cli.js ${{ matrix.cmd }} --dry-run --cwd examples/${{ matrix.dir }}
+      - run: npm run build # builds @kaupang/core then @kaupang/cli
+      - run: node packages/cli/dist/cli.js ${{ matrix.cmd }} --dry-run --cwd examples/${{ matrix.dir }}

@@ -2,15 +2,15 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { backendNames, getBackend } from "../backends/index.js";
-import { loadConfig } from "../config/loader.js";
-import type { BackendName } from "../config/types.js";
-import { makeContext } from "../context.js";
-import { resolvePlan } from "../graph/resolver.js";
-import { latestSuccessful } from "../ledger/ledger.js";
-import { applyTarget, resolveTarget } from "../target/target.js";
-import { run } from "../util/exec.js";
-import { runHooks } from "../util/hooks.js";
+import { backendNames, getBackend } from "@kaupang/core/internal";
+import { loadConfig } from "@kaupang/core/internal";
+import type { BackendName } from "@kaupang/core/internal";
+import { makeContext } from "@kaupang/core/internal";
+import { resolvePlan } from "@kaupang/core/internal";
+import { latestSuccessful } from "@kaupang/core/internal";
+import { applyTarget, resolveTarget } from "@kaupang/core/internal";
+import { run } from "@kaupang/core/internal";
+import { runHooks } from "@kaupang/core/internal";
 import { applyVerbose, verboseArg } from "./shared.js";
 
 export const downCommand = defineCommand({

@@ -1,4 +1,4 @@
-import { defineConfig } from "kaupang";
+import { defineConfig } from "@kaupang/core";
 
 export default defineConfig({
   environments: "./environments",

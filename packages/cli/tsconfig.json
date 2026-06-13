@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src"],
+  "compilerOptions": {
+    "paths": {
+      "@kaupang/core": ["../core/src/index.ts"],
+      "@kaupang/core/internal": ["../core/src/internal.ts"]
+    }
+  }
+}

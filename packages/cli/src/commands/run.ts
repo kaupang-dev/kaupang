@@ -1,6 +1,6 @@
 import { defineCommand } from "citty";
-import { loadConfig } from "../config/loader.js";
-import { runPipeline } from "../run/pipeline.js";
+import { loadConfig } from "@kaupang/core/internal";
+import { runPipeline } from "@kaupang/core/internal";
 import { applyVerbose, verboseArg } from "./shared.js";
 
 export const runCommand = defineCommand({

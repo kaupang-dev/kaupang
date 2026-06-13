@@ -1,4 +1,4 @@
-import { defineEnvironment } from "kaupang";
+import { defineEnvironment } from "@kaupang/core";
 
 export default defineEnvironment({
   services: {

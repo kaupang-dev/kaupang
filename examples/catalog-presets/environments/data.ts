@@ -1,4 +1,4 @@
-import { defineEnvironment, use } from "kaupang";
+import { defineEnvironment, use } from "@kaupang/core";
 
 // `use("name")` pulls a preset from the catalog. Pass a second argument to override
 // fields (env, ports, …) for this particular use.

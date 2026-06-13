@@ -1,4 +1,4 @@
-import { defineEnvironment, secret } from "kaupang";
+import { defineEnvironment, secret } from "@kaupang/core";
 
 // `secret("VAR")` is emitted as `${VAR}` in the generated compose file (Docker
 // resolves it from the host env at deploy time) and as a `secretKeyRef` for the

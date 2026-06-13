@@ -21,7 +21,7 @@ pass() { echo "  ✔ $1"; }
 
 cleanup() {
   step "cleanup"
-  node dist/cli.js down app --backend swarm --cwd "$FIXTURE" >/dev/null 2>&1 || true
+  node packages/cli/dist/cli.js down app --backend swarm --cwd "$FIXTURE" >/dev/null 2>&1 || true
   if [ "$INIT_SWARM" = "1" ]; then docker swarm leave --force >/dev/null 2>&1 || true; fi
   docker rm -f "$REG_NAME" >/dev/null 2>&1 || true
   rm -rf "$FIXTURE/.kaupang"
@@ -29,7 +29,7 @@ cleanup() {
 trap cleanup EXIT
 
 step "ensure the CLI is built"
-[ -f dist/cli.js ] || npm run build
+[ -f packages/cli/dist/cli.js ] || npm run build
 
 step "ensure a single-node swarm is active"
 if [ "$(docker info --format '{{.Swarm.LocalNodeState}}')" != "active" ]; then
@@ -51,7 +51,7 @@ docker push "$IMAGE"
 pass "pushed ${IMAGE}"
 
 step "kaupang up --backend swarm — docker stack deploy"
-node dist/cli.js up app --backend swarm --cwd "$FIXTURE"
+node packages/cli/dist/cli.js up app --backend swarm --cwd "$FIXTURE"
 
 step "assert the stack service converges to 1/1"
 for i in $(seq 1 30); do
@@ -70,7 +70,7 @@ done
 pass "service 1/1 (healthcheck-gated, stable)"
 
 step "kaupang down --backend swarm — docker stack rm"
-node dist/cli.js down app --backend swarm --cwd "$FIXTURE"
+node packages/cli/dist/cli.js down app --backend swarm --cwd "$FIXTURE"
 
 echo ""
 echo "PASS — swarm integration green"

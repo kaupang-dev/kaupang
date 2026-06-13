@@ -1,4 +1,4 @@
-import { defineConfig } from "kaupang";
+import { defineConfig } from "@kaupang/core";
 
 // Same definitions, a different backend. The kubernetes backend renders a Namespace
 // plus a Deployment (and a Service when ports are declared) per service.

@@ -12,9 +12,6 @@
     "skipLibCheck": true,
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
-    "resolveJsonModule": true,
-    "outDir": "dist"
-  },
-  "include": ["src"],
-  "exclude": ["dist", "node_modules", "examples"]
+    "resolveJsonModule": true
+  }
 }

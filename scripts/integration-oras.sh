@@ -31,7 +31,7 @@ pass() { echo "  ✔ $1"; }
 
 cleanup() {
   step "cleanup"
-  node dist/cli.js down app --cwd "$FIXTURE" >/dev/null 2>&1 || true
+  node packages/cli/dist/cli.js down app --cwd "$FIXTURE" >/dev/null 2>&1 || true
   docker compose -p "$PROJECT" down >/dev/null 2>&1 || true
   docker rm -f "$REG_NAME" >/dev/null 2>&1 || true
   rm -rf "$FIXTURE/.kaupang" "$FIXTURE/$BUNDLE_OUT" "$OCI_CAT/.kaupang"
@@ -40,7 +40,7 @@ trap cleanup EXIT
 
 step "require oras + a built CLI"
 command -v oras >/dev/null 2>&1 || { echo "oras not on PATH — install from https://oras.land"; exit 1; }
-[ -f dist/cli.js ] || npm run build
+[ -f packages/cli/dist/cli.js ] || npm run build
 pass "oras present"
 
 step "start registry + build/push the app image"
@@ -57,11 +57,11 @@ pass "registry up, image pushed"
 
 # ---------------------------------------------------------------- bundle over OCI
 step "kaupang bundle --push — pack + oras-push the bundle"
-node dist/cli.js bundle itest --push "$BUNDLE_REF" --output "$BUNDLE_OUT" --cwd "$FIXTURE"
+node packages/cli/dist/cli.js bundle itest --push "$BUNDLE_REF" --output "$BUNDLE_OUT" --cwd "$FIXTURE"
 pass "bundle pushed to ${BUNDLE_REF}"
 
 step "kaupang up --bundle — oras-pull + deploy the pinned artifact"
-node dist/cli.js up --bundle "$BUNDLE_REF" --cwd "$FIXTURE"
+node packages/cli/dist/cli.js up --bundle "$BUNDLE_REF" --cwd "$FIXTURE"
 
 step "assert /health after the bundle round-trip"
 for i in $(seq 1 20); do
@@ -71,7 +71,7 @@ for i in $(seq 1 20); do
 done
 pass "bundle round-trip health ok"
 
-node dist/cli.js down app --cwd "$FIXTURE" >/dev/null
+node packages/cli/dist/cli.js down app --cwd "$FIXTURE" >/dev/null
 pass "bundle deploy torn down"
 
 # ------------------------------------------------------------- OCI catalog source
@@ -85,7 +85,7 @@ rm -rf "$CATDIR"
 pass "catalog pushed to ${CATALOG_REF}"
 
 step "kaupang resolves a preset from the OCI catalog (dry-run)"
-node dist/cli.js up data --dry-run --output json --cwd "$OCI_CAT" | grep -q "nginx:alpine"
+node packages/cli/dist/cli.js up data --dry-run --output json --cwd "$OCI_CAT" | grep -q "nginx:alpine"
 pass "OCI catalog source resolved the preset"
 
 echo ""

@@ -1,4 +1,4 @@
-import { defineEnvironment, secret } from "kaupang";
+import { defineEnvironment, secret } from "@kaupang/core";
 
 // Provide prebuilt images for the kubernetes backend (no build contexts here).
 // `replicas` maps to the Deployment's replica count; `ports` adds a Service;

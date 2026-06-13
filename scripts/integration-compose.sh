@@ -25,14 +25,14 @@ pass() { echo "  ✔ $1"; }
 
 cleanup() {
   step "cleanup"
-  node dist/cli.js down app --cwd "$FIXTURE" >/dev/null 2>&1 || true
+  node packages/cli/dist/cli.js down app --cwd "$FIXTURE" >/dev/null 2>&1 || true
   docker rm -f "$REG_NAME" >/dev/null 2>&1 || true
   rm -rf "$FIXTURE/.kaupang"
 }
 trap cleanup EXIT
 
 step "ensure the CLI is built"
-[ -f dist/cli.js ] || npm run build
+[ -f packages/cli/dist/cli.js ] || npm run build
 
 step "start a throwaway registry at ${REGISTRY}"
 docker rm -f "$REG_NAME" >/dev/null 2>&1 || true
@@ -52,7 +52,7 @@ docker push "$IMAGE"
 pass "pushed ${IMAGE}"
 
 step "kaupang up — resolves the digest and deploys the pinned image via compose"
-node dist/cli.js up app --cwd "$FIXTURE"
+node packages/cli/dist/cli.js up app --cwd "$FIXTURE"
 
 step "assert the service answers /health"
 for i in $(seq 1 20); do
@@ -67,7 +67,7 @@ grep -q 'sha256:' "$FIXTURE/.kaupang/ledger.json"
 pass "digest pinned in ledger"
 
 step "kaupang down"
-node dist/cli.js down app --cwd "$FIXTURE"
+node packages/cli/dist/cli.js down app --cwd "$FIXTURE"
 pass "torn down"
 
 echo ""

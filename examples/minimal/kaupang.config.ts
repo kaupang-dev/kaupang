@@ -1,4 +1,4 @@
-import { defineConfig } from "kaupang";
+import { defineConfig } from "@kaupang/core";
 
 // The smallest possible kaupang setup: one environment, one service, deployed to
 // your local Docker via Compose. Run: `kaupang up web --cwd examples/minimal`.

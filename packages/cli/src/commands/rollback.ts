@@ -2,16 +2,16 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { loadConfig } from "../config/loader.js";
+import { loadConfig } from "@kaupang/core/internal";
 import {
   appendDeployment,
   history,
   newDeploymentId,
   rollbackTarget,
   type DeploymentRecord,
-} from "../ledger/ledger.js";
-import { applyTarget, resolveTarget } from "../target/target.js";
-import { run } from "../util/exec.js";
+} from "@kaupang/core/internal";
+import { applyTarget, resolveTarget } from "@kaupang/core/internal";
+import { run } from "@kaupang/core/internal";
 import { applyVerbose, verboseArg } from "./shared.js";
 
 export const rollbackCommand = defineCommand({

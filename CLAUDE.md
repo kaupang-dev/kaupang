@@ -88,10 +88,18 @@ infra. What's left for the OSS release is *scaffolding*, not verification: `CONT
 
 ## Repo layout & module responsibilities
 
+**Monorepo (npm workspaces).** Two published packages + the examples:
+- `packages/core` → **`@kaupang/core`**: engine + authoring API (no CLI deps). Holds the
+  Vitest suite. `.` export = authoring API; `./internal` export = engine (for the CLI).
+- `packages/cli` → **`@kaupang/cli`**: the `kaupang` binary (citty); depends on `@kaupang/core`.
+
+Paths below under `packages/core/src/` unless noted.
+
 ```
-src/
-  cli.ts                 citty entry; subCommands: up, down, build, bundle, rollback, run
-  index.ts               public API exports (define*, secret, use, all types)
+packages/core/src/
+  index.ts               PUBLIC API (`@kaupang/core`): define*, secret, use, all types
+  internal.ts            engine barrel (`@kaupang/core/internal`) the CLI imports — re-exports
+                         loader/resolver/backends/deploy/ledger/target/… (NOT a public surface)
   context.ts             makeContext(loaded, {pull?, targetEnv?}) → BackendContext
 
   config/
@@ -130,12 +138,19 @@ src/
                          secret pre-flight, hooks, resolve→materialize→write→run→ledger).
                          Returns DeploymentRecord[]. Used by `up` AND pipeline up-steps.
     pipeline.ts          runPipeline — topo-sorts steps, runs run/up/down/build/wait
-  commands/              up, down, build (--push), bundle (--push oci://), rollback, run
-  util/                  exec (run, hasBinary, parseDuration, Executor/defaultExecutor),
-                         env, hooks, names
+  util/                  exec (run, runShell, hasBinary [PATH-scan], parseDuration,
+                         Executor/defaultExecutor), env, hooks, names, registry (oras
+                         --plain-http for loopback/insecure registries)
+
+packages/cli/src/
+  cli.ts                 citty entry; subCommands: up, down, build, bundle, rollback, run
+  commands/              up/down/build/bundle/rollback/run + shared (the --verbose flag);
+                         import the engine from "@kaupang/core/internal"
 
 examples/                runnable examples, one concept per folder; flagship is
-                         examples/longhall/ (the Viking trading post — see below)
+                         examples/longhall/ (the Viking trading post — see below).
+                         Configs import the authoring API from "@kaupang/core".
+scripts/                 integration-*.sh — run `node packages/cli/dist/cli.js …`
 ```
 
 ---
@@ -198,17 +213,20 @@ examples/                runnable examples, one concept per folder; flagship is
 ## Build / dev / run
 
 ```bash
-npm install
-npm run build                 # tsup → dist/ (bin = kaupang → dist/cli.js)
-npx tsc --noEmit              # typecheck
-# run from source without building, via jiti:
+npm install                   # sets up the workspaces (links @kaupang/core locally)
+npm run build                 # builds @kaupang/core (dist/index.js + internal.js) then
+                              # @kaupang/cli (dist/cli.js, with @kaupang/core external)
+npm run typecheck             # tsc --noEmit in both packages (cli typechecks vs core src)
+npm test                      # the Vitest suite (runs in @kaupang/core)
+# run from source without building, via jiti (needs core built — examples import @kaupang/core → dist):
 npm run dev -- up market --dry-run --cwd examples/longhall
-# run the built CLI against the fixture:
-node dist/cli.js run voyage --dry-run --cwd examples/longhall
+# run the built CLI binary against the fixture:
+node packages/cli/dist/cli.js run voyage --dry-run --cwd examples/longhall
 ```
 
-`package-lock.json` had its name field updated during the rename; if it ever looks
-off, delete it and `npm install` once to regenerate cleanly.
+Workspace deps are kept **lockstep** (both `0.1.0`; `@kaupang/cli` depends on
+`@kaupang/core` `^0.1.0`). `dist/` lives under each package (`packages/*/dist`, gitignored).
+If `package-lock.json` ever looks off, delete it and `npm install` once to regenerate.
 
 ---
 
@@ -236,8 +254,8 @@ pipeline) is what's being exercised; the names are flavor. The longhall-api app 
 no npm deps, so `docker build` works offline once `node:20-alpine` is pulled.
 
 **Run it locally (real Docker):** `$env:LONGHALL_JARL_KEY="dev"` then
-`node dist/cli.js build market --cwd examples/longhall` and
-`node dist/cli.js up market --cwd examples/longhall`. `saga`/`runes` pull real
+`node packages/cli/dist/cli.js build market --cwd examples/longhall` and
+`node packages/cli/dist/cli.js up market --cwd examples/longhall`. `saga`/`runes` pull real
 `postgres`/`redis`; `market` builds the local image.
 
 ---
@@ -294,12 +312,19 @@ job as an artifact. ✅ **integration (all 5 legs)** —
 
 ---
 
-## Path to an OSS npm release (`kaupang` is free on npm)
+## Path to an OSS npm release
+
+**Two packages** under the npm org `kaupang` (both scoped, `publishConfig.access` =
+public): **`@kaupang/core`** (library — `import { defineConfig } from "@kaupang/core"`,
+what configs/examples use) and **`@kaupang/cli`** (the `kaupang` binary, `npm i -g
+@kaupang/cli`, depends on core). GitHub repo: `kaupang-dev/kaupang`.
 
 Done: ✅ Vitest suite + fast CI, ✅ real integration testing (all 5 legs), ✅ `LICENSE`
-(MIT) + `package.json` publish fields (`license`/`author`/`repository`/`bugs`/`homepage`).
-Remaining, in rough priority: (1) `CONTRIBUTING` + `CHANGELOG` + semver discipline +
-`prepublishOnly`; (2) sharpen or explicitly scope-down the k8s backend so expectations
-are clear; (3) position vs Kamal/Compose/Helm — lead with the differentiator:
-multi-backend + portable airgappable bundles + solutions; (4) flip the repo public +
-`npm publish`.
+(MIT) + publish fields + `prepublishOnly`, ✅ **monorepo split** (npm workspaces),
+✅ release workflow (`.github/workflows/release.yml` — on a `v*` tag, version-checks both
+packages, publishes core then cli with provenance).
+Remaining, in rough priority: (1) `CONTRIBUTING` + `CHANGELOG` + semver discipline;
+(2) sharpen or explicitly scope-down the k8s backend so expectations are clear;
+(3) position vs Kamal/Compose/Helm — lead with the differentiator: multi-backend +
+portable airgappable bundles + solutions; (4) add the repo's `NPM_TOKEN` secret, flip
+the repo public, and push a `v0.1.0` tag to publish.

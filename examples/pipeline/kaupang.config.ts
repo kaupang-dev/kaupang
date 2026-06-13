@@ -1,4 +1,4 @@
-import { defineConfig } from "kaupang";
+import { defineConfig } from "@kaupang/core";
 
 // A pipeline is an ordered DAG of steps: run a command, deploy an environment, wait
 // for a condition, etc. `needs` wires the dependencies; kaupang topo-sorts them.

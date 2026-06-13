@@ -1,0 +1,45 @@
+name: Release
+
+# Publish @kaupang/core to npm when a v* tag is pushed (e.g. `git tag v0.1.0 && git push --tags`).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+  id-token: write # required for npm provenance (OIDC)
+
+jobs:
+  publish:
+    name: publish @kaupang/core
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+
+      - name: Tag must match both package versions (lockstep)
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          for p in core cli; do
+            PKG="$(node -p "require('./packages/$p/package.json').version")"
+            echo "packages/$p=$PKG  tag=$TAG"
+            [ "$TAG" = "$PKG" ] || { echo "::error::packages/$p version $PKG != tag v$TAG"; exit 1; }
+          done
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+      # Publish core first (cli depends on it). Scoped → --access public (also set via
+      # publishConfig). --provenance attaches a signed attestation linking each tarball
+      # to this repo + commit (needs id-token: write above AND a public repo).
+      - run: npm publish -w @kaupang/core --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish -w @kaupang/cli --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

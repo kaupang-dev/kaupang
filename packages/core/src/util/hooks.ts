@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-import type { HookCommand, Hooks } from "../config/types.js";
+import type { HookCommand } from "../config/types.js";
 import { defaultExecutor, type Executor } from "../util/exec.js";
 
 /** Run a list of hook commands sequentially, relative to rootDir. */
@@ -17,5 +17,3 @@ export async function runHooks(
     });
   }
 }
-
-export type { Hooks };

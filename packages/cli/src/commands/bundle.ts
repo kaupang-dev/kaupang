@@ -2,24 +2,24 @@ import { basename, join, resolve } from "node:path";
 import { mkdirSync } from "node:fs";
 import { defineCommand } from "citty";
 import { consola } from "consola";
-import { getBackend } from "../backends/index.js";
-import { loadConfig } from "../config/loader.js";
-import type { BackendName } from "../config/types.js";
-import { makeContext } from "../context.js";
-import { resolveMultiPlan } from "../graph/resolver.js";
-import { resolveEnvironmentImages, type ResolvedImage } from "../image/resolve.js";
-import { applyPins, resolveSolution } from "../solution/solution.js";
+import { getBackend } from "@kaupang/core/internal";
+import { loadConfig } from "@kaupang/core/internal";
+import type { BackendName } from "@kaupang/core/internal";
+import { makeContext } from "@kaupang/core/internal";
+import { resolveMultiPlan } from "@kaupang/core/internal";
+import { resolveEnvironmentImages, type ResolvedImage } from "@kaupang/core/internal";
+import { applyPins, resolveSolution } from "@kaupang/core/internal";
 import {
   pushBundle,
   rewriteActionPath,
   writeBundle,
   type BundleEnvironment,
   type BundleManifest,
-} from "../solution/bundle.js";
-import { resolveTarget } from "../target/target.js";
-import { stackName } from "../util/names.js";
-import { mergeEnv } from "../util/env.js";
-import { hasBinary, run } from "../util/exec.js";
+} from "@kaupang/core/internal";
+import { resolveTarget } from "@kaupang/core/internal";
+import { stackName } from "@kaupang/core/internal";
+import { mergeEnv } from "@kaupang/core/internal";
+import { hasBinary, run } from "@kaupang/core/internal";
 
 export const bundleCommand = defineCommand({
   meta: {

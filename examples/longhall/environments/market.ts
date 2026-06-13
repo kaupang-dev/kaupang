@@ -1,4 +1,4 @@
-import { defineEnvironment, secret } from "kaupang";
+import { defineEnvironment, secret } from "@kaupang/core";
 
 // The longhall itself: where trade happens. Depends on the saga store and rune cache.
 export default defineEnvironment({

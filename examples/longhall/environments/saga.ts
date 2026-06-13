@@ -1,4 +1,4 @@
-import { defineEnvironment, use } from "kaupang";
+import { defineEnvironment, use } from "@kaupang/core";
 
 // One-liner: the saga store (the ledger) comes straight from the shared catalog.
 export default defineEnvironment({

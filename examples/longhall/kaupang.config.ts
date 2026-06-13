@@ -1,4 +1,4 @@
-import { defineConfig } from "kaupang";
+import { defineConfig } from "@kaupang/core";
 
 // A tiny Viking trading-post backend, "longhall", shown deploying to three realms.
 export default defineConfig({

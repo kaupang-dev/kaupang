@@ -57,14 +57,14 @@ kaupang down api                     # tear it back down
 ## Quick start
 
 ```bash
-npm install -g kaupang        # or use via npx in CI
+npm install -g @kaupang/cli        # or use via npx in CI
 ```
 
 Create a `kaupang.config.ts` at your repo root and an `environments/` folder:
 
 ```ts
 // kaupang.config.ts
-import { defineConfig } from "kaupang";
+import { defineConfig } from "@kaupang/core";
 
 export default defineConfig({
   environments: "./environments",
@@ -75,7 +75,7 @@ export default defineConfig({
 
 ```ts
 // environments/api.ts
-import { defineEnvironment } from "kaupang";
+import { defineEnvironment } from "@kaupang/core";
 
 export default defineEnvironment({
   services: {
@@ -94,7 +94,7 @@ kaupang up api --dry-run  # preview the plan first
 ## Config
 
 ```ts
-import { defineConfig } from "kaupang";
+import { defineConfig } from "@kaupang/core";
 
 export default defineConfig({
   environments: "./environments",     // folder of environment files
@@ -134,7 +134,7 @@ An environment is a `docker-compose`-like definition, but in TypeScript. The
 ergonomic surface is deliberately small:
 
 ```ts
-import { defineEnvironment, use } from "kaupang";
+import { defineEnvironment, use } from "@kaupang/core";
 
 export default defineEnvironment({
   dependsOn: "postgres",                  // string or string[] — other environments
@@ -360,7 +360,7 @@ The CI system still owns triggers, approvals, and secrets; the pipeline owns wha
 actually happens.
 
 ```ts
-import { defineConfig, definePipeline } from "kaupang";
+import { defineConfig, definePipeline } from "@kaupang/core";
 
 export default defineConfig({
   // …environments, targets…
@@ -403,7 +403,7 @@ not a second code path. `wait` example:
 smoke: { wait: { http: "https://api.longhall.example/health", status: 200, interval: "2s", timeout: "2m" }, needs: "deploy" }
 ```
 
-In Azure DevOps this is one step inside a stage — `npx kaupang run release --target
+In Azure DevOps this is one step inside a stage — `npx @kaupang/cli run release --target
 staging` — so approvals/gates stay in the YAML while the deploy recipe stays in
 kaupang and stays runnable locally.
 
@@ -480,7 +480,7 @@ Wrap any env value in `secret("VAR")` and kaupang emits a **reference** instead 
 the value — so secrets never land in the generated artifact or the ledger:
 
 ```ts
-import { defineEnvironment, secret } from "kaupang";
+import { defineEnvironment, secret } from "@kaupang/core";
 
 export default defineEnvironment({
   services: {
@@ -686,7 +686,7 @@ stages:
                 - task: NodeTool@0
                   inputs: { versionSpec: "20.x" }
                 # Resolves longhall-api:$(imageTag) → a digest, pins it, records it.
-                - script: npx kaupang up api --target staging
+                - script: npx @kaupang/cli up api --target staging
                   displayName: Deploy to staging
                   env:
                     LONGHALL_API_TAG: $(imageTag)
@@ -708,7 +708,7 @@ stages:
                 - task: NodeTool@0
                   inputs: { versionSpec: "20.x" }
                 # Same immutable tag ⇒ same digest staging validated.
-                - script: npx kaupang up api --target prod
+                - script: npx @kaupang/cli up api --target prod
                   displayName: Promote to production
                   env:
                     LONGHALL_API_TAG: $(imageTag)
@@ -744,7 +744,7 @@ steps:
   - task: NodeTool@0
     inputs: { versionSpec: "20.x" }
   # Fails the PR if the config doesn't resolve; prints the dependency graph.
-  - script: npx kaupang up api --target staging --dry-run
+  - script: npx @kaupang/cli up api --target staging --dry-run
     displayName: Validate deploy plan
 ```
 
@@ -775,9 +775,9 @@ steps:
     displayName: Cluster login
   - script: |
       if [ -n "${{ parameters.to }}" ]; then
-        npx kaupang rollback api --target ${{ parameters.target }} --to ${{ parameters.to }}
+        npx @kaupang/cli rollback api --target ${{ parameters.target }} --to ${{ parameters.to }}
       else
-        npx kaupang rollback api --target ${{ parameters.target }}
+        npx @kaupang/cli rollback api --target ${{ parameters.target }}
       fi
     displayName: Roll back api
 ```
@@ -801,7 +801,7 @@ resources:
 steps:
   - checkout: self        # the application repo
   - checkout: deploy      # the kaupang config + environments
-  - script: npx kaupang up api --target staging --cwd $(Build.SourcesDirectory)/deploy
+  - script: npx @kaupang/cli up api --target staging --cwd $(Build.SourcesDirectory)/deploy
     env: { LONGHALL_API_TAG: $(imageTag) }
 ```
 

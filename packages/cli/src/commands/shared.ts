@@ -1,4 +1,4 @@
-import { setVerbose } from "../util/exec.js";
+import { setVerbose } from "@kaupang/core/internal";
 
 /** The shared `--verbose` / `-v` flag — spread into a command's `args`. */
 export const verboseArg = {

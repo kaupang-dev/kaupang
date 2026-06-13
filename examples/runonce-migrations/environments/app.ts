@@ -1,4 +1,4 @@
-import { defineEnvironment } from "kaupang";
+import { defineEnvironment } from "@kaupang/core";
 
 // `runOnce` marks a run-to-completion job (migrations / seed). It is forced to
 // `restart: "no"`, and dependents wait for it to finish *successfully* before they
