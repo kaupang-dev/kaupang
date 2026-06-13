@@ -51,7 +51,7 @@ kubectl -n "$NS" port-forward svc/web "${PF_PORT}:80" >/dev/null 2>&1 &
 PF_PID=$!
 ok=0
 for i in $(seq 1 20); do
-  if curl -fsS "http://localhost:${PF_PORT}/" >/dev/null 2>&1; then ok=1; break; fi
+  if curl -fsS --max-time 5 "http://localhost:${PF_PORT}/" >/dev/null 2>&1; then ok=1; break; fi
   sleep 1
 done
 kill "$PF_PID" >/dev/null 2>&1 || true; PF_PID=""

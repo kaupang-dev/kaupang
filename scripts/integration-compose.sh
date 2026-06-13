@@ -38,7 +38,7 @@ step "start a throwaway registry at ${REGISTRY}"
 docker rm -f "$REG_NAME" >/dev/null 2>&1 || true
 docker run -d --name "$REG_NAME" -p 5000:5000 registry:2 >/dev/null
 for i in $(seq 1 30); do
-  if curl -fsS "http://${REGISTRY}/v2/" >/dev/null 2>&1; then break; fi
+  if curl -fsS --max-time 5 "http://${REGISTRY}/v2/" >/dev/null 2>&1; then break; fi
   [ "$i" -eq 30 ] && { echo "registry never came up"; exit 1; }
   sleep 1
 done
@@ -56,7 +56,7 @@ node dist/cli.js up app --cwd "$FIXTURE"
 
 step "assert the service answers /health"
 for i in $(seq 1 20); do
-  if curl -fsS "$HEALTH_URL" 2>/dev/null | grep -q '"status":"ok"'; then break; fi
+  if curl -fsS --max-time 5 "$HEALTH_URL" 2>/dev/null | grep -q '"status":"ok"'; then break; fi
   [ "$i" -eq 20 ] && { echo "health check never passed"; exit 1; }
   sleep 1
 done

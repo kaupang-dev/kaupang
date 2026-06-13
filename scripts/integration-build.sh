@@ -32,7 +32,7 @@ step "start a throwaway registry at ${REGISTRY}"
 docker rm -f "$REG_NAME" >/dev/null 2>&1 || true
 docker run -d --name "$REG_NAME" -p 5000:5000 registry:2 >/dev/null
 for i in $(seq 1 30); do
-  if curl -fsS "http://${REGISTRY}/v2/" >/dev/null 2>&1; then break; fi
+  if curl -fsS --max-time 5 "http://${REGISTRY}/v2/" >/dev/null 2>&1; then break; fi
   [ "$i" -eq 30 ] && { echo "registry never came up"; exit 1; }
   sleep 1
 done
@@ -48,7 +48,7 @@ pass "image built: ${IMAGE}"
 
 step "kaupang build --push — build then push to the registry"
 node dist/cli.js build built --push --cwd "$FIXTURE"
-curl -fsS "http://${REGISTRY}/v2/${NAME}/tags/list" | grep -q '"v1"'
+curl -fsS --max-time 5 "http://${REGISTRY}/v2/${NAME}/tags/list" | grep -q '"v1"'
 pass "image present in registry"
 
 echo ""
