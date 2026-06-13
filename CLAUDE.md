@@ -41,7 +41,7 @@ no Docker daemon, no external registry, and restricted network.
   **plus the execution seam** — runs fully offline, no daemon/registry. `npm run
   coverage` for the report (pure-logic + deploy/pipeline layers are high, the
   remaining gaps are the live IO calls the integration job covers).
-- **Integration — VERIFIED live (compose, build, swarm).** Three scripts under
+- **Integration — VERIFIED live (compose, build, swarm, oras).** Four scripts under
   `scripts/integration-*.sh` (run by `.github/workflows/integration.yml` and locally
   on real Docker), each against a throwaway `registry:2`. Fixture: `test/integration/`.
   - `integration-compose.sh`: build → push → **digest resolution** (`docker buildx
@@ -51,6 +51,9 @@ no Docker daemon, no external registry, and restricted network.
     locally and in the registry.
   - `integration-swarm.sh`: single-node `swarm init` → `up --backend swarm` (stack
     deploy) → service 1/1 → `/health` via routing mesh → `down` (stack rm).
+  - `integration-oras.sh`: bundle-over-OCI round trip (`bundle --push` → `up --bundle`,
+    i.e. oras push then pull + deploy) **and** an `{ type: "oci" }` catalog source —
+    both needing `--plain-http` for the local registry (`util/registry.ts`).
   - All green on real Docker Desktop 29.x as of 2026-06-13.
 - **Execution seam:** `deployPlan` / `runPipeline` / `runHooks` take an injectable
   `Executor` (default `defaultExecutor` = real execa). Tests inject a recording
@@ -66,12 +69,13 @@ no Docker daemon, no external registry, and restricted network.
 - Catalog `file` source; HTTP/service sources via localhost stubs.
 
 **Verified live:** compose `up --wait`/`down`, `docker stack deploy`/`stack rm` (swarm),
-`kaupang build` + `--push` (compose build/push), digest resolution + pinning, ledger
-recording — see the integration scripts above.
+`kaupang build` + `--push`, digest resolution + pinning, ledger recording, **`oras`
+push/pull** (bundle-over-OCI + OCI catalog source, with `--plain-http`) — see the
+integration scripts above.
 
 **NOT verified yet (implemented, typechecks, but never run live):**
 - `kubectl apply` (kubernetes backend on a real cluster) — `kind` job not built yet.
-- `oras push`/`pull` for the OCI catalog source and bundle-over-OCI.
+  This is now the *only* remaining live-path gap.
 
 **The compose path is proven; swarm / k8s / oras / `kaupang build` are the remaining
 integration gaps** (the next jobs to add to `integration.yml`). Treat those live paths
@@ -158,7 +162,14 @@ examples/                runnable examples, one concept per folder; flagship is
   `<cacheDir>/<stack>/`, but `build:` contexts and bind mounts are authored relative
   to the **repo root**. The compose backend passes `--project-directory <rootDir>` so
   they resolve there — don't drop it. (Swarm `stack deploy` runs with `cwd=rootDir`,
-  so its relative paths already resolve from the root.)
+  so its relative paths already resolve from the root.) **Bundle deploys** rewrite that
+  `--project-directory` to the *bundle* dir (`commands/up.ts` `deployBundle`), since the
+  authoring host's path won't exist on an airgapped target.
+- **oras + insecure registries.** `oras` defaults to HTTPS and, unlike `docker`, does
+  not special-case localhost. `util/registry.ts` `orasRegistryArgs(ref)` adds
+  `--plain-http` for loopback hosts (or when `KAUPANG_ORAS_PLAIN_HTTP` is set); bundle
+  push/pull and the `{ type: "oci" }` catalog source route through it. Public registries
+  (ghcr.io, ACR) stay on HTTPS.
 - **Run-to-completion jobs:** a service with `runOnce: true` (e.g. migrations) is
   forced to `restart: "no"`, and any dependent listing it in `dependsOn` renders the
   long-form `depends_on` with `condition: service_completed_successfully` — so
@@ -264,19 +275,20 @@ the execution boundary so it can be faked.
    only wraps the layer that runs their emitted actions. (CLI command wrappers
    `up/down/build/rollback` still call the real `run` directly; their dry-run paths
    are covered, live execution is the integration job's job.)
-3. 🟡 **Integration (real infra, separate CI job) — compose + build + swarm DONE;
-   oras + k8s pending.** `scripts/integration-{compose,build,swarm}.sh` +
-   `.github/workflows/integration.yml` (3 jobs) stand up a local `registry:2` and run
-   the real `up`/`down`/`build` flows against Docker with digest resolution — **all
-   green locally on Docker Desktop 29.x**. Same scripts run in CI (ubuntu, Docker
-   preinstalled). Still to add: `oras` catalog + bundle-over-OCI, and k8s via `kind`.
+3. 🟡 **Integration (real infra, separate CI job) — compose + build + swarm + oras
+   DONE; only k8s pending.** `scripts/integration-{compose,build,swarm,oras}.sh` +
+   `.github/workflows/integration.yml` (4 jobs) stand up a local `registry:2` and run
+   the real `up`/`down`/`build`/`bundle` flows against Docker with digest resolution
+   and OCI push/pull — **all green locally on Docker Desktop 29.x**. Same scripts run
+   in CI (ubuntu, Docker preinstalled; oras via `oras-project/setup-oras`). Last leg to
+   add: k8s via `kind`.
 
 CI: ✅ **fast job** — `.github/workflows/ci.yml` runs typecheck + `npm test` + build on
 Node 20 & 22, then a `--dry-run` matrix over every `examples/` folder (guards against
 example rot; hermetic, no daemon); `dist/` is passed from the test job to the examples
-job as an artifact. ✅ **integration (compose + build + swarm)** —
-`.github/workflows/integration.yml` runs the three `scripts/integration-*.sh` on Docker
-(main + PRs). **Still pending:** k8s (`kind`) and oras legs.
+job as an artifact. ✅ **integration (compose + build + swarm + oras)** —
+`.github/workflows/integration.yml` runs the four `scripts/integration-*.sh` on Docker
+(main + PRs). **Still pending:** the k8s (`kind`) leg.
 
 ---
 

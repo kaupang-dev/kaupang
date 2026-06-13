@@ -1,0 +1,7 @@
+{
+  "environments": "./environments",
+  "project": "oci-catalog-demo",
+  "catalog": {
+    "sources": [{ "type": "oci", "ref": "localhost:5000/itest-catalog:1" }]
+  }
+}

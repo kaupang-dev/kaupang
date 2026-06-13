@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { execa } from "execa";
+import { orasRegistryArgs } from "../util/registry.js";
 import type {
   CatalogConfig,
   CatalogSourceConfig,
@@ -76,7 +77,7 @@ class OciCatalogSource implements CatalogSource {
   async load(): Promise<CatalogManifest> {
     const dir = mkdtempSync(join(tmpdir(), "kaupang-oci-"));
     try {
-      await execa("oras", ["pull", this.ref, "-o", dir]);
+      await execa("oras", ["pull", ...orasRegistryArgs(this.ref), this.ref, "-o", dir]);
     } catch (err) {
       const e = err as { code?: string; message?: string };
       if (e.code === "ENOENT") {

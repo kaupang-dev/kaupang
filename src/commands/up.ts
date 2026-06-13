@@ -180,8 +180,15 @@ async function deployBundle(
     consola.start(`🪓 raising ${env.name}`);
     const absArtifact = join(dir, env.artifact.relPath);
     for (const action of env.up) {
-      // Rewrite the bundle-relative artifact path back to an absolute path.
-      const abs = { ...action, args: action.args.map((x) => (x === env.artifact.relPath ? absArtifact : x)) };
+      // Rewrite the bundle-relative artifact path to its extracted absolute path, and
+      // re-point compose's --project-directory at the bundle dir — the authoring host's
+      // path won't exist on an airgapped target, which is the whole point of a bundle.
+      const abs = {
+        ...action,
+        args: action.args.map((x, i, arr) =>
+          x === env.artifact.relPath ? absArtifact : arr[i - 1] === "--project-directory" ? dir : x,
+        ),
+      };
       const a = applyTarget(abs, rt);
       await run(a.file, a.args, { cwd: dir, dryRun: opts.dryRun, input: a.input, env: a.env });
     }

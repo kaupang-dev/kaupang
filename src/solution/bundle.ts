@@ -6,6 +6,7 @@ import { create as tarCreate, extract as tarExtract } from "tar";
 import type { BackendAction } from "../backends/types.js";
 import type { BackendName } from "../config/types.js";
 import type { ResolvedImage } from "../image/resolve.js";
+import { orasRegistryArgs } from "../util/registry.js";
 
 export const BUNDLE_MANIFEST = "manifest.json";
 const BUNDLE_BLOB = "bundle.tar.gz";
@@ -79,7 +80,11 @@ export async function pushBundle(dir: string, ociRef: string): Promise<void> {
   const tmp = mkdtempSync(join(tmpdir(), "kaupang-push-"));
   try {
     await tarCreate({ file: join(tmp, BUNDLE_BLOB), cwd: dir, gzip: true }, ["."]);
-    await oras(["push", ref, "--artifact-type", BUNDLE_ARTIFACT_TYPE, BUNDLE_BLOB], tmp, `push ${ref}`);
+    await oras(
+      ["push", ...orasRegistryArgs(ref), ref, "--artifact-type", BUNDLE_ARTIFACT_TYPE, BUNDLE_BLOB],
+      tmp,
+      `push ${ref}`,
+    );
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -90,7 +95,7 @@ export async function pullBundle(ociRef: string, intoParent: string): Promise<st
   const ref = ociRef.replace(OCI_PREFIX, "");
   const tmp = mkdtempSync(join(tmpdir(), "kaupang-pull-"));
   try {
-    await oras(["pull", ref, "-o", tmp], process.cwd(), `pull ${ref}`);
+    await oras(["pull", ...orasRegistryArgs(ref), ref, "-o", tmp], process.cwd(), `pull ${ref}`);
     const blob = join(tmp, BUNDLE_BLOB);
     if (!existsSync(blob)) {
       throw new Error(`OCI artifact ${ref} is not a kaupang bundle (no ${BUNDLE_BLOB}).`);
