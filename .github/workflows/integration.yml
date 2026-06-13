@@ -25,7 +25,32 @@ jobs:
       - run: npm run build
       - run: bash scripts/integration-compose.sh
 
-  # TODO (next, once the compose job is green locally + in CI):
-  #   swarm: docker swarm init → kaupang up --backend swarm → stack ls → down
-  #   oras:  push/pull a bundle + catalog over OCI to the local registry
-  #   k8s:   kind cluster → kaupang up --backend kubernetes → kubectl rollout → down
+  build:
+    name: build · compose build + push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: bash scripts/integration-build.sh
+
+  swarm:
+    name: swarm · stack deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: bash scripts/integration-swarm.sh
+
+  # TODO (further legs, once these are green in CI):
+  #   oras: push/pull a bundle + catalog over OCI to the local registry
+  #   k8s:  kind cluster → kaupang up --backend kubernetes → kubectl rollout → down

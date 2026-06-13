@@ -1,0 +1,8 @@
+{
+  "services": {
+    "web": {
+      "build": "./app",
+      "image": "kaupang-built:v1"
+    }
+  }
+}
