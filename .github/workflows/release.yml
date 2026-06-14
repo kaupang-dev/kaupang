@@ -21,10 +21,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
           cache: npm
 
-      - name: Tag must match both package versions (lockstep)
+      - name: Tag must match all package versions (lockstep)
         run: |
           TAG="${GITHUB_REF_NAME#v}"
-          for p in core cli; do
+          for p in core studio cli; do
             PKG="$(node -p "require('./packages/$p/package.json').version")"
             echo "packages/$p=$PKG  tag=$TAG"
             [ "$TAG" = "$PKG" ] || { echo "::error::packages/$p version $PKG != tag v$TAG"; exit 1; }
@@ -34,10 +34,13 @@ jobs:
       - run: npm test
       - run: npm run build
 
-      # Publish core first (cli depends on it). Scoped → --access public (also set via
-      # publishConfig). --provenance attaches a signed attestation linking each tarball
-      # to this repo + commit (needs id-token: write above AND a public repo).
+      # Publish in dependency order: core → studio → cli. Scoped → --access public (also
+      # set via publishConfig). --provenance attaches a signed attestation linking each
+      # tarball to this repo + commit (needs id-token: write above AND a public repo).
       - run: npm publish -w @kaupang/core --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - run: npm publish -w @kaupang/studio --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       - run: npm publish -w @kaupang/cli --provenance --access public

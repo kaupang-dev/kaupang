@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>kaupang studio</title>
+    <style>
+      :root {
+        --bg: #0f1419; --panel: #171d26; --panel2: #1f2733; --line: #2a3340;
+        --fg: #e6edf3; --dim: #93a1b0; --accent: #4cc2ff; --good: #3fb950; --bad: #f85149;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--fg);
+        font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      header { padding: 18px 24px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 12px; }
+      header h1 { font-size: 18px; margin: 0; }
+      header .sub { color: var(--dim); font-size: 13px; }
+      main { max-width: 1100px; margin: 0 auto; padding: 24px; display: grid; gap: 20px; }
+      .step { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+      .step > h2 { margin: 0 0 14px; font-size: 14px; letter-spacing: .02em; }
+      .step > h2 .n { color: var(--bg); background: var(--accent); border-radius: 50%; width: 22px; height: 22px;
+        display: inline-flex; align-items: center; justify-content: center; font-size: 12px; margin-right: 8px; font-weight: 700; }
+      label { display: block; color: var(--dim); font-size: 12px; margin: 8px 0 3px; }
+      input, select, textarea { width: 100%; background: var(--panel2); color: var(--fg); border: 1px solid var(--line);
+        border-radius: 7px; padding: 7px 9px; font: inherit; }
+      textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+      .row { display: flex; gap: 10px; flex-wrap: wrap; }
+      .row > * { flex: 1; min-width: 120px; }
+      button { background: var(--accent); color: #04121c; border: 0; border-radius: 7px; padding: 8px 13px;
+        font: inherit; font-weight: 600; cursor: pointer; }
+      button.ghost { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+      button.danger { background: transparent; color: var(--bad); border: 1px solid var(--line); padding: 4px 9px; }
+      button.sm { padding: 4px 9px; font-size: 12px; }
+      .presets { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; margin-top: 12px; }
+      .preset { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+      .preset b { color: var(--accent); }
+      .preset .meta { color: var(--dim); font-size: 12px; margin-top: 4px; word-break: break-all; }
+      .env, .svc { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-top: 12px; background: var(--panel2); }
+      .svc { background: var(--bg); margin-top: 10px; }
+      .env > .head, .svc > .head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+      .env > .head b, .svc > .head b { color: var(--accent); }
+      .grow { flex: 1; }
+      .muted { color: var(--dim); font-size: 12px; }
+      .checks { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+      .checks label { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); margin: 0; }
+      .checks input { width: auto; }
+      pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+        overflow: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; margin: 6px 0 0; }
+      .file { margin-top: 14px; }
+      .file > .head { display: flex; align-items: center; gap: 10px; }
+      .file > .head .name { font-family: ui-monospace, monospace; font-size: 12px; color: var(--accent); }
+      .err { color: var(--bad); font-size: 12px; margin-top: 8px; }
+      .hint { color: var(--dim); font-size: 12px; margin-top: 6px; }
+      code { background: var(--panel2); padding: 1px 5px; border-radius: 4px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>⚓ kaupang studio</h1>
+      <span class="sub">browse a catalog → assemble environments → compose a solution → export a config</span>
+    </header>
+    <main id="app"></main>
+
+    <script>
+      const S = {
+        source: "",
+        presets: {},        // name -> spec
+        loaded: false,
+        error: "",
+        project: "my-app",
+        repo: "",
+        envs: [],           // { name, dependsOn, services: [{ name, preset, ports, env, dependsOn }] }
+        solution: { name: "release", envs: [], target: "local" },
+      };
+
+      const $ = (sel, el = document) => el.querySelector(sel);
+      const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+      function sourceFor(s) {
+        if (/^https?:\/\//.test(s)) return { type: "http", url: s };
+        if (s.startsWith("oci://")) return { type: "oci", ref: s.slice(6) };
+        return { type: "file", path: s };
+      }
+      function splitList(s) { return String(s || "").split(",").map((x) => x.trim()).filter(Boolean); }
+      function parseEnv(s) {
+        const out = {};
+        for (const line of String(s || "").split("\n")) {
+          const t = line.trim(); if (!t) continue;
+          const i = t.indexOf("="); if (i === -1) continue;
+          out[t.slice(0, i).trim()] = t.slice(i + 1).trim();
+        }
+        return out;
+      }
+
+      async function loadCatalog() {
+        S.error = "";
+        try {
+          const r = await fetch("/api/catalog?source=" + encodeURIComponent(S.source));
+          const data = await r.json();
+          if (!r.ok) throw new Error(data.error || "failed to load catalog");
+          S.presets = data.services || {};
+          S.loaded = true;
+        } catch (e) { S.error = e.message; S.loaded = false; }
+        render();
+      }
+
+      function buildFiles() {
+        const files = {};
+        for (const env of S.envs) {
+          if (!env.name) continue;
+          const services = {};
+          for (const sv of env.services) {
+            if (!sv.name || !sv.preset) continue;
+            const overrides = {};
+            const ports = splitList(sv.ports); if (ports.length) overrides.ports = ports;
+            const e = parseEnv(sv.env); if (Object.keys(e).length) overrides.env = e;
+            const dep = splitList(sv.dependsOn); if (dep.length) overrides.dependsOn = dep;
+            services[sv.name] = Object.keys(overrides).length
+              ? { $catalog: sv.preset, overrides }
+              : { $catalog: sv.preset };
+          }
+          const body = {};
+          const ed = splitList(env.dependsOn); if (ed.length) body.dependsOn = ed.length === 1 ? ed[0] : ed;
+          body.services = services;
+          files["environments/" + env.name + ".json"] = body;
+        }
+        const config = { environments: "./environments", project: S.project || "app" };
+        if (S.repo) config.dockerRepository = S.repo;
+        if (S.source) config.catalog = { sources: [sourceFor(S.source)] };
+        const sol = S.solution;
+        if (sol.name && sol.envs.length) {
+          const recipe = { environments: sol.envs };
+          if (sol.target && sol.target !== "local") recipe.target = sol.target;
+          config.solutions = { [sol.name]: recipe };
+        }
+        files["kaupang.config.json"] = config;
+        return files;
+      }
+
+      function download(name, text) {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+        a.download = name.replace(/\//g, "_");
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }
+
+      function render() {
+        const presetNames = Object.keys(S.presets);
+        const app = $("#app");
+        app.innerHTML = `
+          <section class="step">
+            <h2><span class="n">1</span>Catalog</h2>
+            <label>Catalog source — a file path, http(s) URL, or <code>oci://ref</code></label>
+            <div class="row">
+              <input id="src" class="grow" placeholder="./catalog.json" value="${esc(S.source)}" />
+              <button data-act="load" style="flex:0 0 auto">Load</button>
+            </div>
+            ${S.error ? `<div class="err">${esc(S.error)}</div>` : ""}
+            ${S.loaded ? `<div class="presets">${presetNames.map((n) => {
+              const p = S.presets[n] || {};
+              return `<div class="preset"><b>${esc(n)}</b><div class="meta">${esc(p.image || p.build || "—")}${
+                p.ports ? "<br>ports: " + esc((p.ports || []).join(", ")) : ""}</div></div>`;
+            }).join("") || `<span class="muted">no presets in this catalog</span>`}</div>` : ""}
+          </section>
+
+          <section class="step">
+            <h2><span class="n">2</span>Project &amp; environments</h2>
+            <div class="row">
+              <div><label>Project</label><input data-bind="project" value="${esc(S.project)}" /></div>
+              <div><label>Docker repository (optional, prefixes bare image names)</label><input data-bind="repo" placeholder="ghcr.io/acme" value="${esc(S.repo)}" /></div>
+            </div>
+            ${S.envs.map((env, ei) => `
+              <div class="env">
+                <div class="head">
+                  <b>environment</b>
+                  <input class="grow" data-env="${ei}" data-field="name" placeholder="env name (e.g. market)" value="${esc(env.name)}" />
+                  <button class="danger sm" data-act="rmEnv" data-env="${ei}">remove</button>
+                </div>
+                <label>depends on (other env names, comma-separated)</label>
+                <input data-env="${ei}" data-field="dependsOn" placeholder="saga, runes" value="${esc(env.dependsOn || "")}" />
+                ${env.services.map((sv, si) => `
+                  <div class="svc">
+                    <div class="head">
+                      <b>service</b>
+                      <input class="grow" data-env="${ei}" data-svc="${si}" data-field="name" placeholder="service name" value="${esc(sv.name)}" />
+                      <span class="muted">from ${esc(sv.preset)}</span>
+                      <button class="danger sm" data-act="rmSvc" data-env="${ei}" data-svc="${si}">×</button>
+                    </div>
+                    <div class="row">
+                      <div><label>ports override (comma)</label><input data-env="${ei}" data-svc="${si}" data-field="ports" placeholder="8080:3000" value="${esc(sv.ports || "")}" /></div>
+                      <div><label>depends on (services, comma)</label><input data-env="${ei}" data-svc="${si}" data-field="dependsOn" placeholder="migrate" value="${esc(sv.dependsOn || "")}" /></div>
+                    </div>
+                    <label>env override (one KEY=VALUE per line)</label>
+                    <textarea rows="2" data-env="${ei}" data-svc="${si}" data-field="env" placeholder="LOG_LEVEL=info">${esc(sv.env || "")}</textarea>
+                  </div>`).join("")}
+                <div class="row" style="margin-top:10px">
+                  <select data-add-svc="${ei}">
+                    <option value="">+ add service from preset…</option>
+                    ${presetNames.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("")}
+                  </select>
+                </div>
+              </div>`).join("")}
+            <div style="margin-top:14px"><button class="ghost" data-act="addEnv">+ add environment</button></div>
+            ${!S.loaded ? `<p class="hint">Load a catalog above to add services from presets.</p>` : ""}
+          </section>
+
+          <section class="step">
+            <h2><span class="n">3</span>Solution</h2>
+            <div class="row">
+              <div><label>Solution name</label><input data-bind="solName" value="${esc(S.solution.name)}" /></div>
+              <div><label>Default target (optional)</label><input data-bind="solTarget" placeholder="local" value="${esc(S.solution.target)}" /></div>
+            </div>
+            <label>Environments in this solution</label>
+            <div class="checks">
+              ${S.envs.filter((e) => e.name).map((e) => `
+                <label><input type="checkbox" data-sol-env="${esc(e.name)}" ${S.solution.envs.includes(e.name) ? "checked" : ""} /> ${esc(e.name)}</label>`).join("")
+                || `<span class="muted">add an environment first</span>`}
+            </div>
+          </section>
+
+          <section class="step">
+            <h2><span class="n">4</span>Export</h2>
+            <p class="hint">Drop these files in a folder and run <code>kaupang up ${esc(S.solution.name || "<env>")}</code>. JSON configs need no Node.</p>
+            <div id="export"></div>
+          </section>`;
+        renderExport();
+      }
+
+      function renderExport() {
+        const files = buildFiles();
+        const wrap = $("#export");
+        if (!wrap) return;
+        wrap.innerHTML = Object.entries(files).map(([name, obj]) => {
+          const json = JSON.stringify(obj, null, 2);
+          return `<div class="file"><div class="head"><span class="name">${esc(name)}</span>
+            <button class="ghost sm" data-dl="${esc(name)}">download</button></div>
+            <pre>${esc(json)}</pre></div>`;
+        }).join("");
+        wrap.dataset.files = JSON.stringify(files);
+      }
+
+      // ---- event wiring (delegation) ----
+      document.addEventListener("click", (ev) => {
+        const t = ev.target.closest("[data-act],[data-dl]");
+        if (!t) return;
+        const act = t.dataset.act;
+        if (act === "load") { S.source = $("#src").value.trim(); loadCatalog(); }
+        else if (act === "addEnv") { S.envs.push({ name: "", dependsOn: "", services: [] }); render(); }
+        else if (act === "rmEnv") { S.envs.splice(+t.dataset.env, 1); render(); }
+        else if (act === "rmSvc") { S.envs[+t.dataset.env].services.splice(+t.dataset.svc, 1); render(); }
+        else if (t.dataset.dl) {
+          const files = JSON.parse($("#export").dataset.files || "{}");
+          download(t.dataset.dl, JSON.stringify(files[t.dataset.dl], null, 2));
+        }
+      });
+
+      document.addEventListener("change", (ev) => {
+        const t = ev.target;
+        if (t.dataset.addSvc !== undefined && t.value) {
+          S.envs[+t.dataset.addSvc].services.push({ name: t.value, preset: t.value, ports: "", env: "", dependsOn: "" });
+          render();
+        } else if (t.dataset.solEnv !== undefined) {
+          const name = t.dataset.solEnv;
+          const set = new Set(S.solution.envs);
+          t.checked ? set.add(name) : set.delete(name);
+          S.solution.envs = [...set];
+          renderExport();
+        }
+      });
+
+      document.addEventListener("input", (ev) => {
+        const t = ev.target;
+        if (t.dataset.bind) {
+          const m = { project: "project", repo: "repo", solName: ["solution", "name"], solTarget: ["solution", "target"] }[t.dataset.bind];
+          if (Array.isArray(m)) S[m[0]][m[1]] = t.value; else S[m] = t.value;
+          renderExport();
+        } else if (t.dataset.env !== undefined) {
+          const env = S.envs[+t.dataset.env];
+          if (t.dataset.svc !== undefined) env.services[+t.dataset.svc][t.dataset.field] = t.value;
+          else env[t.dataset.field] = t.value;
+          renderExport();
+        }
+      });
+
+      // load any default catalog the server was started with
+      fetch("/api/defaults").then((r) => r.json()).then((d) => {
+        if (d.catalog) { S.source = d.catalog; render(); loadCatalog(); } else { render(); }
+      }).catch(render);
+    </script>
+  </body>
+</html>

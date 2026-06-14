@@ -88,10 +88,14 @@ infra. What's left for the OSS release is *scaffolding*, not verification: `CONT
 
 ## Repo layout & module responsibilities
 
-**Monorepo (npm workspaces).** Two published packages + the examples:
+**Monorepo (npm workspaces).** Three published packages + the examples:
 - `packages/core` → **`@kaupang/core`**: engine + authoring API (no CLI deps). Holds the
   Vitest suite. `.` export = authoring API; `./internal` export = engine (for the CLI).
-- `packages/cli` → **`@kaupang/cli`**: the `kaupang` binary (citty); depends on `@kaupang/core`.
+- `packages/cli` → **`@kaupang/cli`**: the `kaupang` binary (citty); depends on `@kaupang/core`
+  (+ `@kaupang/studio`, lazily imported by the `studio` command).
+- `packages/studio` → **`@kaupang/studio`**: a web UI (`node:http` + an inlined single-page
+  app, no framework) to browse a catalog and export a config. `startStudio()` is launched by
+  `kaupang studio`; the same server runs headless in a Docker image. Depends on `@kaupang/core`.
 
 Paths below under `packages/core/src/` unless noted.
 
@@ -314,17 +318,16 @@ job as an artifact. ✅ **integration (all 5 legs)** —
 
 ## Path to an OSS npm release
 
-**Two packages** under the npm org `kaupang` (both scoped, `publishConfig.access` =
-public): **`@kaupang/core`** (library — `import { defineConfig } from "@kaupang/core"`,
-what configs/examples use) and **`@kaupang/cli`** (the `kaupang` binary, `npm i -g
-@kaupang/cli`, depends on core). GitHub repo: `kaupang-dev/kaupang`.
+**Three packages** under the npm org `kaupang` (all scoped, `publishConfig.access` =
+public): **`@kaupang/core`** (library), **`@kaupang/cli`** (the `kaupang` binary), and
+**`@kaupang/studio`** (the web UI). GitHub repo: `kaupang-dev/kaupang`.
 
-Done: ✅ Vitest suite + fast CI, ✅ real integration testing (all 5 legs), ✅ `LICENSE`
-(MIT) + publish fields + `prepublishOnly`, ✅ **monorepo split** (npm workspaces),
-✅ release workflow (`.github/workflows/release.yml` — on a `v*` tag, version-checks both
-packages, publishes core then cli with provenance).
-Remaining, in rough priority: (1) `CONTRIBUTING` + `CHANGELOG` + semver discipline;
-(2) sharpen or explicitly scope-down the k8s backend so expectations are clear;
-(3) position vs Kamal/Compose/Helm — lead with the differentiator: multi-backend +
-portable airgappable bundles + solutions; (4) add the repo's `NPM_TOKEN` secret, flip
-the repo public, and push a `v0.1.0` tag to publish.
+**🚀 SHIPPED:** repo public; `@kaupang/core` + `@kaupang/cli` published at **v0.1.0** with
+provenance (NPM_TOKEN secret set). `@kaupang/studio` is new — it publishes on the next
+tagged release. The release workflow version-checks all three (lockstep) and publishes
+**core → studio → cli** on a `v*` tag.
+
+Remaining roadmap (optional polish, nothing blocking): (1) build + push the
+`@kaupang/studio` **Docker image** (`packages/studio/Dockerfile`) to `ghcr.io` in CI;
+(2) standalone CLI binaries (Bun `--compile`) for no-Node users; (3) sharpen/scope-down
+the k8s backend; (4) position vs Kamal/Compose/Helm in the README.

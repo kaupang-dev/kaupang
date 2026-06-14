@@ -4,8 +4,7 @@
   "compilerOptions": {
     "paths": {
       "@kaupang/core": ["../core/src/index.ts"],
-      "@kaupang/core/internal": ["../core/src/internal.ts"],
-      "@kaupang/studio": ["../studio/src/index.ts"]
+      "@kaupang/core/internal": ["../core/src/internal.ts"]
     }
   }
 }

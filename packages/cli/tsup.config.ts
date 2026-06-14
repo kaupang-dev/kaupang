@@ -7,6 +7,6 @@ export default defineConfig({
   dts: false, // binary package — no library types to ship
   clean: true,
   shims: true,
-  // @kaupang/core is a runtime dependency, resolved from node_modules — not bundled.
-  external: ["@kaupang/core", "@kaupang/core/internal"],
+  // @kaupang/* are runtime dependencies, resolved from node_modules — not bundled.
+  external: ["@kaupang/core", "@kaupang/core/internal", "@kaupang/studio"],
 });

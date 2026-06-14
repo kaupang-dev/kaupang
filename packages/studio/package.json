@@ -1,13 +1,13 @@
 {
-  "name": "@kaupang/cli",
+  "name": "@kaupang/studio",
   "version": "0.1.0",
-  "description": "The kaupang CLI — the `kaupang` binary. Deploy the same definitions to Docker Compose, Swarm, or Kubernetes from one config.",
+  "description": "kaupang studio — a small web UI to browse a catalog and assemble environments + solutions, then export a kaupang config. Launch with `kaupang studio` or run the Docker image.",
   "license": "MIT",
   "author": "Andreas Quist Batista",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kaupang-dev/kaupang.git",
-    "directory": "packages/cli"
+    "directory": "packages/studio"
   },
   "bugs": {
     "url": "https://github.com/kaupang-dev/kaupang/issues"
@@ -17,8 +17,14 @@
   "publishConfig": {
     "access": "public"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "bin": {
-    "kaupang": "./dist/cli.js"
+    "kaupang-studio": "./dist/serve.js"
   },
   "files": [
     "dist"
@@ -29,10 +35,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@kaupang/core": "^0.1.0",
-    "@kaupang/studio": "^0.1.0",
-    "citty": "0.1.6",
-    "consola": "3.4.0"
+    "@kaupang/core": "^0.1.0"
   },
   "engines": {
     "node": ">=18"

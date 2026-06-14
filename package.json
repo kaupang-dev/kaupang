@@ -18,8 +18,8 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @kaupang/core && npm run build -w @kaupang/cli",
-    "typecheck": "npm run typecheck -w @kaupang/core && npm run typecheck -w @kaupang/cli",
+    "build": "npm run build -w @kaupang/core && npm run build -w @kaupang/studio && npm run build -w @kaupang/cli",
+    "typecheck": "npm run typecheck -w @kaupang/core && npm run typecheck -w @kaupang/studio && npm run typecheck -w @kaupang/cli",
     "test": "npm run test -w @kaupang/core",
     "coverage": "npm run coverage -w @kaupang/core",
     "dev": "jiti packages/cli/src/cli.ts"

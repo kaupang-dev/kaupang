@@ -5,6 +5,7 @@ import { bundleCommand } from "./commands/bundle.js";
 import { downCommand } from "./commands/down.js";
 import { rollbackCommand } from "./commands/rollback.js";
 import { runCommand } from "./commands/run.js";
+import { studioCommand } from "./commands/studio.js";
 import { upCommand } from "./commands/up.js";
 
 const main = defineCommand({
@@ -21,6 +22,7 @@ const main = defineCommand({
     bundle: bundleCommand,
     rollback: rollbackCommand,
     run: runCommand,
+    studio: studioCommand,
   },
 });
 
