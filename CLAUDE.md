@@ -324,10 +324,10 @@ public): **`@kaupang/core`** (library), **`@kaupang/cli`** (the `kaupang` binary
 
 **🚀 SHIPPED:** repo public; `@kaupang/core` + `@kaupang/cli` published at **v0.1.0** with
 provenance (NPM_TOKEN secret set). `@kaupang/studio` is new — it publishes on the next
-tagged release. The release workflow version-checks all three (lockstep) and publishes
-**core → studio → cli** on a `v*` tag.
+tagged release. On a `v*` tag the release workflow version-checks all three (lockstep),
+publishes **core → studio → cli** to npm, then builds + pushes the **studio Docker image**
+(`packages/studio/Dockerfile`, multi-arch) to `ghcr.io/<owner>/kaupang-studio`.
 
-Remaining roadmap (optional polish, nothing blocking): (1) build + push the
-`@kaupang/studio` **Docker image** (`packages/studio/Dockerfile`) to `ghcr.io` in CI;
-(2) standalone CLI binaries (Bun `--compile`) for no-Node users; (3) sharpen/scope-down
-the k8s backend; (4) position vs Kamal/Compose/Helm in the README.
+Remaining roadmap (optional polish, nothing blocking): (1) standalone CLI binaries
+(Bun `--compile`) for no-Node users; (2) sharpen/scope-down the k8s backend; (3) position
+vs Kamal/Compose/Helm in the README; (4) click-through UX polish on studio.
