@@ -7,6 +7,27 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-06-16
+
+### Added
+
+- **Studio rebuilt as a React app** (`@kaupang/studio`) — a two-column visual builder:
+  the ingested catalog on the left, a node-graph canvas on the right. Built with React +
+  [React Flow](https://reactflow.dev) and Tailwind, bundled to a single self-contained
+  `index.html` (no CDN, airgap-safe) that the server serves as before.
+  - **Catalog → canvas**: drag presets onto the canvas; the catalog list is searchable,
+    type-filtered, and virtualized for large (100+ preset) catalogs.
+  - **Environments as group boxes**: services are grouped into per-environment containers
+    laid out in dependency waves; drag a service between boxes to reassign it. Environments
+    can be added, renamed, and removed (right-click).
+  - **Inspector** (persistent right panel) edits a service's image/build, ports, command,
+    entrypoint, working directory, volumes, networks (incl. aliases), env, and `runOnce`.
+  - **Local vs catalog-linked** services are distinguished; catalog-linked services export
+    as `$catalog` + only the fields changed from the preset (`overrides`).
+  - **Export** generates `kaupang.config.json` + `environments/*.json`; **Import** loads
+    those back onto the canvas (round-trip stable). Per-node context menu (remove / unattach)
+    and an in-canvas keyboard-shortcuts helper.
+
 ## [0.2.0] — 2026-06-15
 
 ### Added
@@ -59,7 +80,8 @@ Initial release.
   (via kind), `build`/`--push`, digest resolution, and `oras` bundle + catalog — by
   `scripts/integration-*.sh` and the integration CI workflow.
 
-[Unreleased]: https://github.com/kaupang-dev/kaupang/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/kaupang-dev/kaupang/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/kaupang-dev/kaupang/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kaupang-dev/kaupang/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/kaupang-dev/kaupang/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/kaupang-dev/kaupang/compare/v0.1.0...v0.1.1

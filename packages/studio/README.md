@@ -4,8 +4,9 @@
 [![license](https://img.shields.io/npm/l/@kaupang/studio.svg)](https://github.com/kaupang-dev/kaupang/blob/main/LICENSE)
 
 > A small web UI to browse a [kaupang](https://github.com/kaupang-dev/kaupang) catalog,
-> assemble environments + a solution, and **export a ready-to-run config**. No framework,
-> no CDN — a single self-contained page.
+> assemble environments + a solution, and **export a ready-to-run config**. Built with
+> React + [React Flow](https://reactflow.dev) and bundled to a single self-contained
+> page — no CDN, airgap-safe.
 
 ## Launch it
 
@@ -40,6 +41,18 @@ import { startStudio } from "@kaupang/studio";
 
 const { url, close } = await startStudio({ port: 8080, catalog: "./catalog.json" });
 console.log(`studio on ${url}`);
+```
+
+## Develop the UI
+
+The web UI is a Vite + React + React Flow app under [`web/`](./web). It's built to a
+single inlined `web/dist/index.html`, which the package's `tsup` build embeds as a string
+and the server serves at `/`.
+
+```bash
+kaupang studio --catalog ./catalog.json   # terminal 1: the API on :8080
+npm run dev -w @kaupang/studio            # terminal 2: Vite dev server, proxies /api → :8080
+npm run build -w @kaupang/studio          # build:web (Vite single-file) + tsup bundle
 ```
 
 ## License
