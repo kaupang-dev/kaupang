@@ -1,6 +1,6 @@
 {
   "name": "kaupang-monorepo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Monorepo for kaupang — the trading hub for your deploys. Publishes @kaupang/core (engine + authoring API) and @kaupang/cli (the `kaupang` binary).",
   "license": "MIT",
   "author": "Andreas Quist Batista",

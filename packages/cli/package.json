@@ -1,6 +1,6 @@
 {
   "name": "@kaupang/cli",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "The kaupang CLI — the `kaupang` binary. Deploy the same definitions to Docker Compose, Swarm, or Kubernetes from one config.",
   "license": "MIT",
   "author": "Andreas Quist Batista",
