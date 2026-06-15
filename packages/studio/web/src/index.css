@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+/* kaupang studio is dark-only; these tokens become Tailwind utilities (bg-surface,
+   text-muted, border-border, …) so component classes stay theme-agnostic. */
+@theme {
+  --color-bg: #0b0f14;
+  --color-surface: #111721;
+  --color-surface-2: #0d131b;
+  --color-border: #202a36;
+  --color-border-strong: #2c3a49;
+  --color-text: #e6edf3;
+  --color-muted: #8b97a6;
+  --color-faint: #5f6b7a;
+  --color-accent: #4cc2ff;
+  --color-infra: #1d9e75;
+  --color-service: #7f77dd;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
