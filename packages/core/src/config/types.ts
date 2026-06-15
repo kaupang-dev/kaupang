@@ -39,6 +39,9 @@ export interface ServiceDefinition {
   image?: string;
   build?: string | BuildConfig;
   command?: string | string[];
+  entrypoint?: string | string[];
+  workingDirectory?: string;
+  capAdd?: string[];
   ports?: string[];
   env?: EnvMap;
   volumes?: string[];
