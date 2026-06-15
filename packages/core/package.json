@@ -1,6 +1,6 @@
 {
   "name": "@kaupang/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "kaupang's engine + config-authoring API (defineConfig/defineEnvironment/secret/use + types). The CLI lives in @kaupang/cli.",
   "license": "MIT",
   "author": "Andreas Quist Batista",

@@ -56,6 +56,9 @@ function toComposeService(
   if (def.ports?.length) svc.ports = def.ports;
   if (def.volumes?.length) svc.volumes = def.volumes;
   if (def.networks?.length) svc.networks = def.networks;
+  if (def.capAdd?.length) svc.cap_add = def.capAdd;
+  if (def.entrypoint) svc.entrypoint = def.entrypoint;
+  if (def.workingDirectory) svc.working_dir = def.workingDirectory;
   if (def.labels) svc.labels = def.labels;
 
   if (def.pull && !opts.swarm) svc.pull_policy = def.pull;
