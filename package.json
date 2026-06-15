@@ -1,6 +1,6 @@
 {
   "name": "kaupang-monorepo",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Monorepo for kaupang — the trading hub for your deploys. Publishes @kaupang/core (engine + authoring API) and @kaupang/cli (the `kaupang` binary).",
   "license": "MIT",
   "author": "Andreas Quist Batista",
@@ -22,7 +22,8 @@
     "typecheck": "npm run typecheck -w @kaupang/core && npm run typecheck -w @kaupang/studio && npm run typecheck -w @kaupang/cli",
     "test": "npm run test -w @kaupang/core",
     "coverage": "npm run coverage -w @kaupang/core",
-    "dev": "jiti packages/cli/src/cli.ts"
+    "dev": "jiti packages/cli/src/cli.ts",
+    "bump": "node scripts/bump.mjs"
   },
   "devDependencies": {
     "@types/node": "22.10.5",

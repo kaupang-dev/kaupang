@@ -1,6 +1,6 @@
 {
   "name": "@kaupang/studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "kaupang studio — a small web UI to browse a catalog and assemble environments + solutions, then export a kaupang config. Launch with `kaupang studio` or run the Docker image.",
   "license": "MIT",
   "author": "Andreas Quist Batista",
@@ -35,7 +35,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@kaupang/core": "^0.1.0"
+    "@kaupang/core": "^0.2.0"
   },
   "engines": {
     "node": ">=18"

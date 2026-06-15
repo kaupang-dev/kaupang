@@ -35,6 +35,11 @@ export interface HealthcheckConfig {
  * (below), which the loader normalizes into this shape: image prefixed with the
  * docker repository, `dependsOn` coerced to an array, pull policy filled in.
  */
+/** How a service attaches to a network (compose/swarm): extra DNS aliases it answers to. */
+export interface NetworkAttachment {
+  aliases?: string[];
+}
+
 export interface ServiceDefinition {
   image?: string;
   build?: string | BuildConfig;
@@ -50,7 +55,8 @@ export interface ServiceDefinition {
   replicas?: number;
   restart?: "no" | "always" | "on-failure" | "unless-stopped";
   labels?: Record<string, string>;
-  networks?: string[];
+  /** Networks this service joins: a plain list of names, or a map of name → { aliases }. */
+  networks?: string[] | Record<string, NetworkAttachment>;
   healthcheck?: HealthcheckConfig;
   /** Pull behavior for this service's image. */
   pull?: PullPolicy;

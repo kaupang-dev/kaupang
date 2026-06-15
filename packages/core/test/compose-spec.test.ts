@@ -191,3 +191,28 @@ describe("renderComposeFile network/volume collection", () => {
     expect(doc.volumes).toEqual({ data: {} });
   });
 });
+
+describe("renderComposeFile network aliases", () => {
+  it("renders the map form with aliases and still declares the network", () => {
+    const doc = parse(
+      renderComposeFile(
+        plan({ web: { image: "x", networks: { frontend: { aliases: ["api.internal"] } } } }),
+        { swarm: false, baseEnv: {}, targetEnv: {} },
+      ),
+    );
+    expect(doc.services.web.networks).toEqual({ frontend: { aliases: ["api.internal"] } });
+    expect(doc.networks).toEqual({ frontend: {} });
+  });
+
+  it("still supports the plain list form", () => {
+    const doc = parse(
+      renderComposeFile(plan({ web: { image: "x", networks: ["backend"] } }), {
+        swarm: false,
+        baseEnv: {},
+        targetEnv: {},
+      }),
+    );
+    expect(doc.services.web.networks).toEqual(["backend"]);
+    expect(doc.networks).toEqual({ backend: {} });
+  });
+});

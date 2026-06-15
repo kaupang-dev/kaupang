@@ -55,7 +55,11 @@ function toComposeService(
   if (def.command) svc.command = def.command;
   if (def.ports?.length) svc.ports = def.ports;
   if (def.volumes?.length) svc.volumes = def.volumes;
-  if (def.networks?.length) svc.networks = def.networks;
+  if (Array.isArray(def.networks)) {
+    if (def.networks.length) svc.networks = def.networks;
+  } else if (def.networks && Object.keys(def.networks).length) {
+    svc.networks = def.networks; // { mynet: { aliases: ["api.internal"] } }
+  }
   if (def.capAdd?.length) svc.cap_add = def.capAdd;
   if (def.entrypoint) svc.entrypoint = def.entrypoint;
   if (def.workingDirectory) svc.working_dir = def.workingDirectory;
@@ -126,7 +130,9 @@ function toSwarmCondition(restart: NonNullable<ServiceDefinition["restart"]>): s
 function collectNetworks(env: EnvironmentPlan): string[] {
   const set = new Set<string>();
   for (const svc of Object.values(env.services)) {
-    for (const n of svc.networks ?? []) set.add(n);
+    const nets = svc.networks;
+    const names = Array.isArray(nets) ? nets : nets ? Object.keys(nets) : [];
+    for (const n of names) set.add(n);
   }
   return [...set];
 }

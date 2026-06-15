@@ -2,12 +2,34 @@
 
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project adheres to
-[Semantic Versioning](https://semver.org/spec/v2.0.0.html). `@kaupang/core` and
-`@kaupang/cli` are released together (lockstep).
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). `@kaupang/core`,
+`@kaupang/cli`, and `@kaupang/studio` are released together (lockstep).
 
 ## [Unreleased]
 
-## [0.1.0] — Unreleased
+## [0.2.0] — 2026-06-15
+
+### Added
+
+- **Network aliases** — a service's `networks` may now be a map of `name → { aliases }`
+  (e.g. `{ frontend: { aliases: ["api.internal"] } }`) as well as a plain list of names.
+  Compose/swarm render the alias form; the k8s backend ignores networks. (`@kaupang/core`)
+- **`@kaupang/studio`** — a web UI to browse a catalog and assemble + export a config;
+  launchable via `kaupang studio` or the Docker image.
+
+## [0.1.2] — 2026-06-15
+
+### Changed
+
+- Version bump (re-publish).
+
+## [0.1.1] — 2026-06-15
+
+### Added
+
+- Service-level **`entrypoint`**, **`workingDirectory`**, and **`capAdd`** (compose/swarm). (`@kaupang/core`)
+
+## [0.1.0] — 2026-06-13
 
 Initial release.
 
@@ -37,5 +59,8 @@ Initial release.
   (via kind), `build`/`--push`, digest resolution, and `oras` bundle + catalog — by
   `scripts/integration-*.sh` and the integration CI workflow.
 
-[Unreleased]: https://github.com/kaupang-dev/kaupang/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/kaupang-dev/kaupang/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/kaupang-dev/kaupang/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/kaupang-dev/kaupang/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/kaupang-dev/kaupang/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/kaupang-dev/kaupang/releases/tag/v0.1.0

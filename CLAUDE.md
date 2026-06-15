@@ -228,9 +228,12 @@ npm run dev -- up market --dry-run --cwd examples/longhall
 node packages/cli/dist/cli.js run voyage --dry-run --cwd examples/longhall
 ```
 
-Workspace deps are kept **lockstep** (both `0.1.0`; `@kaupang/cli` depends on
-`@kaupang/core` `^0.1.0`). `dist/` lives under each package (`packages/*/dist`, gitignored).
-If `package-lock.json` ever looks off, delete it and `npm install` once to regenerate.
+All three packages are versioned **lockstep** (`@kaupang/cli` → `@kaupang/core`/`studio`,
+`@kaupang/studio` → `@kaupang/core`, all `^<version>`). **Bump with one command —
+`npm run bump -- <version|patch|minor|major>`** (`scripts/bump.mjs`): it sets every
+`packages/*` + root version, rewrites the inter-package dep ranges to `^<version>`, and
+syncs the lockfile (`--dry` to preview). Then move CHANGELOG `[Unreleased]` → the version
+and tag `v<version>`. `dist/` lives under each package (`packages/*/dist`, gitignored).
 
 ---
 
