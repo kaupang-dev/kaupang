@@ -26,8 +26,13 @@ describe("resolveImage", () => {
     expect(resolveImage("web", "ghcr.io/acme")).toBe("ghcr.io/acme/web");
   });
 
-  it("leaves fully-qualified names (anything with a slash) untouched", () => {
+  it("leaves registry-qualified names untouched (host has a dot, port, or is localhost)", () => {
     expect(resolveImage("ghcr.io/other/web", "ghcr.io/acme")).toBe("ghcr.io/other/web");
+    expect(resolveImage("localhost:5000/web", "ghcr.io/acme")).toBe("localhost:5000/web");
+  });
+
+  it("prefixes namespaced names without a registry host", () => {
+    expect(resolveImage("team/web", "ghcr.io/acme")).toBe("ghcr.io/acme/team/web");
   });
 
   it("strips trailing slashes from the repo", () => {

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { addEdge, useEdgesState, useNodesState } from "@xyflow/react";
-import type { Connection, Edge, Node, OnNodesChange } from "@xyflow/react";
+import type { Connection, Edge, Node, OnNodesChange, XYPosition } from "@xyflow/react";
 import { fetchCatalog, fetchDefaults } from "./api";
 import type { CatalogResponse, PlacedNodeData, Selection, ServiceDef, ServiceNodeType } from "./types";
 import { kindFor } from "./lib/kind";
-import { layout } from "./lib/layout";
+import { autoLayout, envBoxes, placeInEnv } from "./lib/layout";
 import { buildExport } from "./lib/export";
 import { buildImport, findConfig, sourceOf } from "./lib/import";
 import { CatalogPanel } from "./components/CatalogPanel";
@@ -18,6 +18,8 @@ import type { MenuItem, MenuState } from "./components/ContextMenu";
 let seq = 0;
 const nextId = (name: string) => `${name}-${++seq}`;
 const servicesOf = (nodes: Node[]) => nodes.filter((n) => n.type === "service") as ServiceNodeType[];
+const withEnv = (n: Node, env: string) =>
+  ({ ...n, data: { ...(n.data as PlacedNodeData), env } }) as ServiceNodeType;
 
 export function App() {
   const [source, setSource] = useState("");
@@ -65,37 +67,35 @@ export function App() {
       .catch(() => {});
   }, [load]);
 
-  const rebuild = useCallback(
-    (mutate: (s: ServiceNodeType[]) => ServiceNodeType[], envs: string[] = environments, nextEdges: Edge[] = edges) =>
-      setNodes((prev) => layout(mutate(servicesOf(prev)), nextEdges, envs)),
-    [edges, environments, setNodes],
+  // Service nodes + the derived environment boxes behind them. Boxes recompute from where
+  // the services sit, so nothing is ever auto-arranged — positions are only ever set by the
+  // user (drag), by dropping, or by the explicit Auto-layout / Import actions.
+  const displayNodes = useMemo(
+    () => [...envBoxes(servicesOf(nodes), environments), ...nodes],
+    [nodes, environments],
   );
 
-  // Add a service plus any new edges, then re-run the layout in one shot.
   const place = useCallback(
-    (node: ServiceNodeType, newEdges: Edge[] = []) => {
-      setEdges((prevE) => {
-        const allE = newEdges.length ? [...prevE, ...newEdges] : prevE;
-        setNodes((prevN) => layout([...servicesOf(prevN), node], allE, environments));
-        return allE;
-      });
+    (node: ServiceNodeType, newEdges: Edge[]) => {
+      if (newEdges.length) setEdges((prev) => [...prev, ...newEdges]);
+      setNodes((prev) => [...prev, node]);
       setSelection({ type: "node", node });
     },
-    [environments, setEdges, setNodes],
+    [setEdges, setNodes],
   );
 
   const addPreset = useCallback(
-    (name: string, def: ServiceDef) => {
+    (name: string, def: ServiceDef, position?: XYPosition, env?: string) => {
+      const targetEnv = env ?? activeEnv;
       const id = nextId(name);
       const node: ServiceNodeType = {
         id,
         type: "service",
-        position: { x: 0, y: 0 },
-        data: { label: name, kind: kindFor(def), local: false, preset: name, env: activeEnv, def },
+        position: position ?? placeInEnv(servicesOf(nodes), targetEnv),
+        data: { label: name, kind: kindFor(def), local: false, preset: name, env: targetEnv, def },
       };
-      // Auto-wire: the preset's own dependsOn → edges to matching services already in the
-      // same environment (an edge new→existing means the new service depends on it).
-      const existing = servicesOf(nodes).filter((s) => s.data.env === activeEnv);
+      // Auto-wire the preset's own dependsOn to matching services already in the same env.
+      const existing = servicesOf(nodes).filter((s) => s.data.env === targetEnv);
       const deps = Array.isArray(def.dependsOn) ? def.dependsOn : [];
       const newEdges: Edge[] = deps
         .map((dep) => existing.find((s) => s.data.label === dep))
@@ -108,13 +108,16 @@ export function App() {
 
   const addLocal = useCallback(() => {
     const id = nextId("new-service");
-    place({
-      id,
-      type: "service",
-      position: { x: 0, y: 0 },
-      data: { label: "new-service", kind: "service", local: true, env: activeEnv, def: { build: "./services/new-service" } },
-    });
-  }, [activeEnv, place]);
+    place(
+      {
+        id,
+        type: "service",
+        position: placeInEnv(servicesOf(nodes), activeEnv),
+        data: { label: "new-service", kind: "service", local: true, env: activeEnv, def: { build: "./services/new-service" } },
+      },
+      [],
+    );
+  }, [activeEnv, nodes, place]);
 
   const updateNode = useCallback(
     (id: string, mutate: (d: PlacedNodeData) => PlacedNodeData) => {
@@ -130,75 +133,88 @@ export function App() {
     [setNodes],
   );
 
+  // Move a node to another environment. `relocate` drops it into the target env's cluster
+  // (inspector dropdown); a drag-reassign keeps the position where it was dropped.
   const reassignEnv = useCallback(
-    (id: string, env: string) => {
-      rebuild((s) => s.map((n) => (n.id === id ? { ...n, data: { ...n.data, env } } : n)));
+    (id: string, env: string, relocate: boolean) => {
+      setNodes((prev) =>
+        prev.map((n) => {
+          if (n.id !== id) return n;
+          const moved = withEnv(n, env);
+          if (relocate) moved.position = placeInEnv(servicesOf(prev).filter((s) => s.id !== id), env);
+          return moved;
+        }),
+      );
       setSelection((sel) =>
         sel?.type === "node" && sel.node.id === id
           ? { type: "node", node: { ...sel.node, data: { ...sel.node.data, env } } }
           : sel,
       );
     },
-    [rebuild],
+    [setNodes],
   );
 
   const onNodeDropInEnv = useCallback(
     (id: string, envName: string | null) => {
       const cur = servicesOf(nodes).find((s) => s.id === id)?.data.env;
-      if (envName && environments.includes(envName) && envName !== cur) reassignEnv(id, envName);
-      else rebuild((s) => s); // snap back into the wave layout
+      if (envName && environments.includes(envName) && envName !== cur) reassignEnv(id, envName, false);
     },
-    [environments, nodes, reassignEnv, rebuild],
+    [environments, nodes, reassignEnv],
   );
 
   const addEnvironment = useCallback(() => {
     const name = window.prompt("Environment name")?.trim();
     if (!name || environments.includes(name)) return;
-    const next = [...environments, name];
-    setEnvironments(next);
+    setEnvironments((prev) => [...prev, name]);
     setEnvDeps((d) => ({ ...d, [name]: [] }));
     setActiveEnv(name);
-    rebuild((s) => s, next);
-  }, [environments, rebuild]);
+  }, [environments]);
 
   const onConnect = useCallback(
-    (connection: Connection) =>
-      setEdges((prev) => {
-        const next = addEdge(connection, prev);
-        setNodes((ns) => layout(servicesOf(ns), next, environments));
-        return next;
-      }),
-    [environments, setEdges, setNodes],
+    (connection: Connection) => setEdges((prev) => addEdge(connection, prev)),
+    [setEdges],
   );
 
-  // Apply React Flow's changes, then re-run the layout whenever a node is removed so the
-  // environment boxes (and their service counts) reflect the deletion.
+  // Apply React Flow's changes; just clear the inspector if its node was deleted. Env boxes
+  // recompute from the surviving nodes, so no relayout is needed.
   const handleNodesChange = useCallback<OnNodesChange<Node>>(
     (changes) => {
       onNodesChange(changes);
       const removed = changes.flatMap((c) => (c.type === "remove" ? [c.id] : []));
       if (removed.length) {
         setSelection((sel) => (sel?.type === "node" && removed.includes(sel.node.id) ? null : sel));
-        setNodes((prev) => layout(servicesOf(prev), edges, environments));
       }
     },
-    [onNodesChange, setNodes, edges, environments],
+    [onNodesChange],
   );
 
   const onNodeClick = useCallback((_event: MouseEvent, node: Node) => {
     if (node.type === "service") setSelection({ type: "node", node: node as ServiceNodeType });
   }, []);
 
-  const onDropPreset = useCallback(
-    (name: string) => {
-      const def = catalog?.services[name];
-      if (def) addPreset(name, def);
+  // Which env box (if any) sits under a flow-space point — used to file a dropped preset.
+  const envAt = useCallback(
+    (point: XYPosition): string | undefined => {
+      for (const b of envBoxes(servicesOf(nodes), environments)) {
+        const w = (b.style?.width as number) ?? 0;
+        const h = (b.style?.height as number) ?? 0;
+        if (point.x >= b.position.x && point.x <= b.position.x + w && point.y >= b.position.y && point.y <= b.position.y + h) {
+          return (b.data as { name: string }).name;
+        }
+      }
+      return undefined;
     },
-    [catalog, addPreset],
+    [nodes, environments],
   );
 
-  // Import an exported project: pick kaupang.config.json + environments/*.json, rebuild the
-  // canvas. Auto-loads the config's catalog so $catalog services resolve to their presets.
+  const onDropPreset = useCallback(
+    (name: string, position: XYPosition) => {
+      const def = catalog?.services[name];
+      if (def) addPreset(name, def, position, envAt(position));
+    },
+    [catalog, addPreset, envAt],
+  );
+
   const onImportFiles = useCallback(
     async (fileList: FileList) => {
       const files = Array.from(fileList);
@@ -236,7 +252,7 @@ export function App() {
       setActiveEnv(envs[0] ?? "market");
       setEnvDeps(r.envDeps);
       setEdges(r.edges);
-      setNodes(layout(r.nodes, r.edges, envs));
+      setNodes(autoLayout(r.nodes, r.edges, envs)); // one-time arrange for a fresh import
       setProject(r.project);
       setSolution(r.solution);
       setSelection(null);
@@ -246,26 +262,17 @@ export function App() {
 
   const removeNode = useCallback(
     (id: string) => {
-      setEdges((prevE) => {
-        const nextE = prevE.filter((e) => e.source !== id && e.target !== id);
-        setNodes((prevN) => layout(servicesOf(prevN).filter((s) => s.id !== id), nextE, environments));
-        return nextE;
-      });
+      setEdges((prev) => prev.filter((e) => e.source !== id && e.target !== id));
+      setNodes((prev) => prev.filter((n) => n.id !== id));
       setSelection((sel) => (sel?.type === "node" && sel.node.id === id ? null : sel));
     },
-    [environments, setEdges, setNodes],
+    [setEdges, setNodes],
   );
 
   // Detach a node from the graph: drop the edges into/out of it but keep the node.
   const unattachNode = useCallback(
-    (id: string) => {
-      setEdges((prevE) => {
-        const nextE = prevE.filter((e) => e.source !== id && e.target !== id);
-        setNodes((prevN) => layout(servicesOf(prevN), nextE, environments));
-        return nextE;
-      });
-    },
-    [environments, setEdges, setNodes],
+    (id: string) => setEdges((prev) => prev.filter((e) => e.source !== id && e.target !== id)),
+    [setEdges],
   );
 
   const onNodeContextMenu = useCallback(
@@ -286,28 +293,21 @@ export function App() {
     (env: string) => {
       const name = window.prompt("Rename environment", env)?.trim();
       if (!name || name === env || environments.includes(name)) return;
-      const next = environments.map((e) => (e === env ? name : e));
-      setEnvironments(next);
+      setEnvironments((prev) => prev.map((e) => (e === env ? name : e)));
       setEnvDeps((d) =>
         Object.fromEntries(
           Object.entries(d).map(([k, v]) => [k === env ? name : k, v.map((x) => (x === env ? name : x))]),
         ),
       );
       setActiveEnv((a) => (a === env ? name : a));
-      setNodes((prev) =>
-        layout(
-          servicesOf(prev).map((s) => (s.data.env === env ? { ...s, data: { ...s.data, env: name } } : s)),
-          edges,
-          next,
-        ),
-      );
+      setNodes((prev) => prev.map((n) => ((n.data as PlacedNodeData).env === env ? withEnv(n, name) : n)));
       setSelection((sel) =>
         sel?.type === "node" && sel.node.data.env === env
           ? { type: "node", node: { ...sel.node, data: { ...sel.node.data, env: name } } }
           : sel,
       );
     },
-    [environments, edges, setNodes],
+    [environments, setNodes],
   );
 
   const removeEnv = useCallback(
@@ -321,8 +321,7 @@ export function App() {
       if (count > 0 && !window.confirm(`Move ${count} service${count === 1 ? "" : "s"} from “${env}” to “${fallback}”?`)) {
         return;
       }
-      const next = environments.filter((e) => e !== env);
-      setEnvironments(next);
+      setEnvironments((prev) => prev.filter((e) => e !== env));
       setEnvDeps((d) =>
         Object.fromEntries(
           Object.entries(d)
@@ -331,20 +330,14 @@ export function App() {
         ),
       );
       setActiveEnv((a) => (a === env ? fallback : a));
-      setNodes((prev) =>
-        layout(
-          servicesOf(prev).map((s) => (s.data.env === env ? { ...s, data: { ...s.data, env: fallback } } : s)),
-          edges,
-          next,
-        ),
-      );
+      setNodes((prev) => prev.map((n) => ((n.data as PlacedNodeData).env === env ? withEnv(n, fallback) : n)));
       setSelection((sel) =>
         sel?.type === "node" && sel.node.data.env === env
           ? { type: "node", node: { ...sel.node, data: { ...sel.node.data, env: fallback } } }
           : sel,
       );
     },
-    [environments, nodes, edges, setNodes],
+    [environments, nodes, setNodes],
   );
 
   const onEnvContextMenu = useCallback(
@@ -414,7 +407,7 @@ export function App() {
           }}
         />
         <button
-          onClick={() => rebuild((s) => s)}
+          onClick={() => setNodes((prev) => autoLayout(servicesOf(prev), edges, environments))}
           className="ml-auto h-9 rounded-md border border-border bg-surface px-3 text-[13px] hover:border-border-strong"
         >
           Auto-layout
@@ -438,7 +431,7 @@ export function App() {
           services={catalog?.services ?? {}}
           loading={loading}
           error={error}
-          onAdd={addPreset}
+          onAdd={(name, def) => addPreset(name, def)}
           onPreview={(name, def) => setSelection({ type: "preset", name, def })}
           onNewLocal={addLocal}
         />
@@ -469,7 +462,7 @@ export function App() {
           </div>
           <div className="min-h-0 flex-1">
             <FlowCanvas
-              nodes={nodes}
+              nodes={displayNodes}
               edges={edges}
               onNodesChange={handleNodesChange}
               onEdgesChange={onEdgesChange}
@@ -485,7 +478,7 @@ export function App() {
         <Inspector
           selection={selection}
           environments={environments}
-          onReassign={(env) => selection?.type === "node" && reassignEnv(selection.node.id, env)}
+          onReassign={(env) => selection?.type === "node" && reassignEnv(selection.node.id, env, true)}
           onUpdate={(mutate) => selection?.type === "node" && updateNode(selection.node.id, mutate)}
         />
       </main>

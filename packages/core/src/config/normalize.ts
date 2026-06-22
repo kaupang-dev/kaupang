@@ -35,14 +35,24 @@ export function toArray(value?: Dependable): string[] {
 }
 
 /**
- * Prefix a bare image name with the docker repository.
- * Fully-qualified names (anything containing "/") are left untouched, so
- * public/official images should be written in full or pulled from the catalog.
+ * Prefix an image name with the docker repository unless it is already fully
+ * qualified. "Fully qualified" means the first path segment looks like a registry
+ * host — it contains a "." or ":", or is "localhost". So a namespaced name like
+ * `team/api` still gets the prefix (`<repo>/team/api`), while `ghcr.io/team/api`
+ * or `localhost:5000/api` are left untouched. Bare public images (`redis`) get
+ * prefixed too — write them in full or pull them from the catalog to avoid that.
  */
 export function resolveImage(image: string | undefined, repo?: string): string | undefined {
   if (!image || !repo) return image;
-  if (image.includes("/")) return image;
+  if (isFullyQualified(image)) return image;
   return `${repo.replace(/\/+$/, "")}/${image}`;
+}
+
+function isFullyQualified(image: string): boolean {
+  const slash = image.indexOf("/");
+  if (slash === -1) return false;
+  const host = image.slice(0, slash);
+  return host.includes(".") || host.includes(":") || host === "localhost";
 }
 
 function isCatalogRef(input: ServiceInput): input is CatalogRef {

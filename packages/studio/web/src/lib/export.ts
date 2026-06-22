@@ -29,6 +29,7 @@ const FIELDS = [
 ] as const;
 
 const eq = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
 const blank = (v: unknown) =>
   v == null || (Array.isArray(v) && v.length === 0) || (typeof v === "object" && Object.keys(v as object).length === 0);
 
@@ -80,11 +81,14 @@ export function buildExport(opts: {
       if (s.data.local) {
         servicesObj[s.data.label] = { ...pick(s.data.def), ...(deps.length ? { dependsOn: deps } : {}) };
       } else {
-        const preset = (s.data.preset && presets[s.data.preset]) || {};
+        const preset: ServiceDef = (s.data.preset ? presets[s.data.preset] : undefined) ?? {};
         const changed = pick(s.data.def);
         const overrides: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(changed)) if (!eq(v, preset[k])) overrides[k] = v;
-        if (deps.length) overrides.dependsOn = deps;
+        // Only override dependsOn when the wired edges differ from the preset's own deps,
+        // so a preset-declared dependency round-trips without becoming a redundant override.
+        const presetDeps = Array.isArray(preset.dependsOn) ? preset.dependsOn : [];
+        if (!sameSet(deps, presetDeps)) overrides.dependsOn = deps;
         servicesObj[s.data.label] = {
           $catalog: s.data.preset,
           ...(Object.keys(overrides).length ? { overrides } : {}),

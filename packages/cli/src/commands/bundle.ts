@@ -4,7 +4,7 @@ import { defineCommand } from "citty";
 import { consola } from "consola";
 import { getBackend } from "@kaupang/core/internal";
 import { loadConfig } from "@kaupang/core/internal";
-import type { BackendName } from "@kaupang/core/internal";
+import type { BackendName, EnvironmentPlan, ServiceDefinition } from "@kaupang/core/internal";
 import { makeContext } from "@kaupang/core/internal";
 import { resolveMultiPlan } from "@kaupang/core/internal";
 import { resolveEnvironmentImages, type ResolvedImage } from "@kaupang/core/internal";
@@ -61,6 +61,14 @@ export const bundleCommand = defineCommand({
     const outDir = resolve(loaded.rootDir, args.output ?? `${sol.name}-bundle`);
     const tars: string[] = [];
     const environments: BundleEnvironment[] = [];
+    const saveRefs = new Set<string>();
+
+    // --with-images packs the images for an airgapped target. That only works if docker
+    // is here to `docker save` them; if it isn't, fall back to a build-on-target bundle.
+    const withImages = Boolean(args["with-images"]) && (await hasBinary("docker"));
+    if (args["with-images"] && !withImages) {
+      consola.warn("docker not found — bundling without images (the target must build/pull).");
+    }
 
     consola.info(
       `📦 Packing cargo "${sol.name}"${sol.version ? `@${sol.version}` : ""} for ${targetName} (${backendName})`,
@@ -74,7 +82,18 @@ export const bundleCommand = defineCommand({
         deployEnv = r.env;
         images = r.images;
       }
-      const m = backend.materialize(deployEnv, ctx);
+
+      // Airgap bundle: deploy from the saved images instead of rebuilding on the target,
+      // so record every image to save and drop the build contexts from the artifact.
+      let artifactEnv = deployEnv;
+      if (withImages) {
+        for (const svc of Object.values(deployEnv.services)) {
+          if (svc.image) saveRefs.add(svc.image);
+        }
+        artifactEnv = stripBuild(deployEnv);
+      }
+
+      const m = backend.materialize(artifactEnv, ctx);
       const file = m.files[0]!; // every backend emits one artifact per environment
       const relPath = join("artifacts", stackName(loaded.project, env.name), basename(file.path));
 
@@ -88,18 +107,20 @@ export const bundleCommand = defineCommand({
       });
     }
 
-    if (args["with-images"]) {
-      if (!(await hasBinary("docker"))) {
-        consola.warn("docker not found — skipping image export (bundle has no tars).");
-      } else {
-        mkdirSync(join(outDir, "images"), { recursive: true });
-        const unique = [...new Set(environments.flatMap((e) => e.images.map((i) => i.pinned)))];
-        for (const ref of unique) {
-          const tar = join("images", `${ref.replace(/[^a-zA-Z0-9]+/g, "_")}.tar`);
-          consola.start(`📦 stowing image ${ref}`);
+    if (withImages) {
+      mkdirSync(join(outDir, "images"), { recursive: true });
+      for (const ref of saveRefs) {
+        const tar = join("images", `${ref.replace(/[^a-zA-Z0-9]+/g, "_")}.tar`);
+        consola.start(`📦 stowing image ${ref}`);
+        try {
           await run("docker", ["save", "-o", join(outDir, tar), ref], { cwd: loaded.rootDir });
-          tars.push(tar);
+        } catch {
+          throw new Error(
+            `Could not "docker save ${ref}" — the image isn't present locally. Build or pull it ` +
+              `first (e.g. \`kaupang build <env>\`), then re-run bundle.`,
+          );
         }
+        tars.push(tar);
       }
     }
 
@@ -127,3 +148,14 @@ export const bundleCommand = defineCommand({
     }
   },
 });
+
+/** Drop build contexts so an airgapped target deploys from the loaded image, not a rebuild. */
+function stripBuild(env: EnvironmentPlan): EnvironmentPlan {
+  const services: Record<string, ServiceDefinition> = {};
+  for (const [key, def] of Object.entries(env.services)) {
+    const copy = { ...def };
+    delete copy.build;
+    services[key] = copy;
+  }
+  return { ...env, services };
+}

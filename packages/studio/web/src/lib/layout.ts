@@ -1,17 +1,24 @@
-import type { Edge, Node } from "@xyflow/react";
+import type { Edge, Node, XYPosition } from "@xyflow/react";
 import type { ServiceNodeType } from "../types";
 
-const NODE_W = 180;
-const NODE_H = 60;
-const COL_GAP = 48;
-const ROW_GAP = 26;
+// Fallback node size before React Flow has measured a freshly-added node.
+const EST_W = 180;
+const EST_H = 64;
 const PAD = 18;
-const HEADER = 34;
-const ENV_GAP = 56;
-const EMPTY_W = 220;
-const EMPTY_H = 120;
+const HEADER = 30;
 
-const groupByEnv = (services: ServiceNodeType[], envOrder: string[]) => {
+// Placeholder size for an environment that has no services yet.
+const EMPTY_W = 240;
+const EMPTY_H = 130;
+
+// Spacing for the explicit (button / import) wave layout.
+const NODE_W = 180;
+const NODE_H = 64;
+const COL_GAP = 48;
+const ROW_GAP = 28;
+const ENV_GAP = 96;
+
+function groupByEnv(services: ServiceNodeType[], envOrder: string[]): Map<string, ServiceNodeType[]> {
   const byEnv = new Map<string, ServiceNodeType[]>();
   for (const env of envOrder) byEnv.set(env, []);
   for (const s of services) {
@@ -19,9 +26,91 @@ const groupByEnv = (services: ServiceNodeType[], envOrder: string[]) => {
     byEnv.get(s.data.env)!.push(s);
   }
   return byEnv;
-};
+}
 
-// Dependency waves within one environment (edge A→B = A depends on B, so B floats up).
+const sizeOf = (s: ServiceNodeType): [number, number] => [s.measured?.width ?? EST_W, s.measured?.height ?? EST_H];
+
+// Container ("env") nodes derived from where the services actually sit. Each box is sized
+// to enclose its members (using their real measured dimensions, so a wide node never spills
+// out) with a header strip on top. Empty environments get no box. These are non-interactive
+// background nodes; they never move the services.
+export function envBoxes(services: ServiceNodeType[], envOrder: string[]): Node[] {
+  const box = (env: string, count: number, x: number, y: number, width: number, height: number): Node => ({
+    id: `env:${env}`,
+    type: "env",
+    position: { x, y },
+    data: { name: env, count },
+    // Explicit dimensions so React Flow treats the box as measured and renders it
+    // (a non-interactive node otherwise stays visibility:hidden awaiting measurement).
+    width,
+    height,
+    style: { width, height },
+    draggable: false,
+    selectable: false,
+    zIndex: -1,
+  });
+
+  const boxes: Node[] = [];
+  const empty: string[] = [];
+  let rightEdge = -Infinity;
+
+  for (const [env, members] of groupByEnv(services, envOrder)) {
+    if (!members.length) {
+      empty.push(env);
+      continue;
+    }
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const s of members) {
+      const [w, h] = sizeOf(s);
+      minX = Math.min(minX, s.position.x);
+      minY = Math.min(minY, s.position.y);
+      maxX = Math.max(maxX, s.position.x + w);
+      maxY = Math.max(maxY, s.position.y + h);
+    }
+    const x = minX - PAD;
+    const width = maxX - minX + PAD * 2;
+    boxes.push(box(env, members.length, x, minY - PAD - HEADER, width, maxY - minY + PAD * 2 + HEADER));
+    rightEdge = Math.max(rightEdge, x + width);
+  }
+
+  // Empty environments still get a (placeholder) box, parked to the right of the populated
+  // ones, so a freshly-created environment is visible and can be dropped into.
+  let x = Number.isFinite(rightEdge) ? rightEdge + ENV_GAP : 40;
+  for (const env of empty) {
+    boxes.push(box(env, 0, x, 40, EMPTY_W, EMPTY_H));
+    x += EMPTY_W + ENV_GAP;
+  }
+  return boxes;
+}
+
+// A free slot for a new service in an environment: below that env's current cluster, or a
+// default corner when it's empty. Keeps a new node from landing on top of an existing one.
+export function placeInEnv(services: ServiceNodeType[], env: string): XYPosition {
+  const members = services.filter((s) => s.data.env === env);
+  if (members.length) {
+    let minX = Infinity;
+    let maxBottom = -Infinity;
+    for (const s of members) {
+      minX = Math.min(minX, s.position.x);
+      maxBottom = Math.max(maxBottom, s.position.y + sizeOf(s)[1]);
+    }
+    return { x: minX, y: maxBottom + ROW_GAP };
+  }
+  // First service of an (empty) environment: drop it to the right of everything else, near
+  // where that env's placeholder box sits, rather than on top of another env at the origin.
+  if (!services.length) return { x: 80, y: 80 };
+  let maxRight = -Infinity;
+  let minY = Infinity;
+  for (const s of services) {
+    maxRight = Math.max(maxRight, s.position.x + sizeOf(s)[0]);
+    minY = Math.min(minY, s.position.y);
+  }
+  return { x: maxRight + ENV_GAP + PAD, y: Number.isFinite(minY) ? minY : 80 };
+}
+
 function waves(group: ServiceNodeType[], edges: Edge[]): string[][] {
   const ids = new Set(group.map((g) => g.id));
   const deps = new Map<string, Set<string>>(group.map((g) => [g.id, new Set<string>()]));
@@ -44,49 +133,24 @@ function waves(group: ServiceNodeType[], edges: Edge[]): string[][] {
   return out;
 }
 
-// Lay out services into per-environment container ("env") nodes. Each environment is a
-// box positioned left-to-right; its services are children (parentId = env node) stacked
-// in dependency waves. Returns the full node list with env boxes before their children.
-export function layout(services: ServiceNodeType[], edges: Edge[], envOrder: string[]): Node[] {
-  const byEnv = groupByEnv(services, envOrder);
-  const result: Node[] = [];
+// Explicit arrange: services into per-environment columns, dependency-wave stacked. Used by
+// the "Auto-layout" button and once on import — never automatically on edit.
+export function autoLayout(services: ServiceNodeType[], edges: Edge[], envOrder: string[]): ServiceNodeType[] {
+  const out: ServiceNodeType[] = [];
   let colX = 0;
-
-  for (const [env, group] of byEnv) {
-    const id = `env:${env}`;
-    const rows = waves(group, edges);
+  for (const [, members] of groupByEnv(services, envOrder)) {
+    if (!members.length) continue;
+    const rows = waves(members, edges);
     const rowWidth = (n: number) => n * (NODE_W + COL_GAP) - COL_GAP;
-    const innerW = group.length ? Math.max(NODE_W, ...rows.map((r) => rowWidth(r.length))) : EMPTY_W - PAD * 2;
-    const innerH = group.length ? rows.length * (NODE_H + ROW_GAP) - ROW_GAP : EMPTY_H - HEADER - PAD;
-    const width = innerW + PAD * 2;
-    const height = HEADER + innerH + PAD;
-
-    result.push({
-      id,
-      type: "env",
-      position: { x: colX, y: 0 },
-      data: { name: env, count: group.length },
-      style: { width, height },
-      draggable: false,
-      selectable: false,
-      zIndex: -1,
-    });
-
+    const innerW = Math.max(NODE_W, ...rows.map((r) => rowWidth(r.length)));
     rows.forEach((ids, w) => {
-      const startX = PAD + (innerW - rowWidth(ids.length)) / 2;
-      ids.forEach((nodeId, i) => {
-        const node = group.find((g) => g.id === nodeId)!;
-        result.push({
-          ...node,
-          parentId: id,
-          extent: undefined,
-          position: { x: startX + i * (NODE_W + COL_GAP), y: HEADER + w * (NODE_H + ROW_GAP) },
-        });
+      const startX = colX + (innerW - rowWidth(ids.length)) / 2;
+      ids.forEach((id, i) => {
+        const node = members.find((m) => m.id === id)!;
+        out.push({ ...node, position: { x: startX + i * (NODE_W + COL_GAP), y: w * (NODE_H + ROW_GAP) } });
       });
     });
-
-    colX += width + ENV_GAP;
+    colX += innerW + ENV_GAP;
   }
-
-  return result;
+  return out;
 }
