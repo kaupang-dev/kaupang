@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { addEdge, useEdgesState, useNodesState } from "@xyflow/react";
+<<<<<<< HEAD
 import type { Connection, Edge, Node, OnNodesChange, XYPosition } from "@xyflow/react";
 import { fetchCatalog, fetchDefaults } from "./api";
 import type { CatalogResponse, PlacedNodeData, Selection, ServiceDef, ServiceNodeType } from "./types";
 import { kindFor } from "./lib/kind";
 import { autoLayout, envBoxes, placeInEnv } from "./lib/layout";
+=======
+import type { Connection, Edge, Node, OnNodesChange } from "@xyflow/react";
+import { fetchCatalog, fetchDefaults } from "./api";
+import type { CatalogResponse, PlacedNodeData, Selection, ServiceDef, ServiceNodeType } from "./types";
+import { kindFor } from "./lib/kind";
+import { layout } from "./lib/layout";
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
 import { buildExport } from "./lib/export";
 import { buildImport, findConfig, sourceOf } from "./lib/import";
 import { CatalogPanel } from "./components/CatalogPanel";
@@ -18,8 +26,11 @@ import type { MenuItem, MenuState } from "./components/ContextMenu";
 let seq = 0;
 const nextId = (name: string) => `${name}-${++seq}`;
 const servicesOf = (nodes: Node[]) => nodes.filter((n) => n.type === "service") as ServiceNodeType[];
+<<<<<<< HEAD
 const withEnv = (n: Node, env: string) =>
   ({ ...n, data: { ...(n.data as PlacedNodeData), env } }) as ServiceNodeType;
+=======
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
 
 export function App() {
   const [source, setSource] = useState("");
@@ -67,6 +78,7 @@ export function App() {
       .catch(() => {});
   }, [load]);
 
+<<<<<<< HEAD
   // Service nodes + the derived environment boxes behind them. Boxes recompute from where
   // the services sit, so nothing is ever auto-arranged — positions are only ever set by the
   // user (drag), by dropping, or by the explicit Auto-layout / Import actions.
@@ -87,15 +99,47 @@ export function App() {
   const addPreset = useCallback(
     (name: string, def: ServiceDef, position?: XYPosition, env?: string) => {
       const targetEnv = env ?? activeEnv;
+=======
+  const rebuild = useCallback(
+    (mutate: (s: ServiceNodeType[]) => ServiceNodeType[], envs: string[] = environments, nextEdges: Edge[] = edges) =>
+      setNodes((prev) => layout(mutate(servicesOf(prev)), nextEdges, envs)),
+    [edges, environments, setNodes],
+  );
+
+  // Add a service plus any new edges, then re-run the layout in one shot.
+  const place = useCallback(
+    (node: ServiceNodeType, newEdges: Edge[] = []) => {
+      setEdges((prevE) => {
+        const allE = newEdges.length ? [...prevE, ...newEdges] : prevE;
+        setNodes((prevN) => layout([...servicesOf(prevN), node], allE, environments));
+        return allE;
+      });
+      setSelection({ type: "node", node });
+    },
+    [environments, setEdges, setNodes],
+  );
+
+  const addPreset = useCallback(
+    (name: string, def: ServiceDef) => {
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       const id = nextId(name);
       const node: ServiceNodeType = {
         id,
         type: "service",
+<<<<<<< HEAD
         position: position ?? placeInEnv(servicesOf(nodes), targetEnv),
         data: { label: name, kind: kindFor(def), local: false, preset: name, env: targetEnv, def },
       };
       // Auto-wire the preset's own dependsOn to matching services already in the same env.
       const existing = servicesOf(nodes).filter((s) => s.data.env === targetEnv);
+=======
+        position: { x: 0, y: 0 },
+        data: { label: name, kind: kindFor(def), local: false, preset: name, env: activeEnv, def },
+      };
+      // Auto-wire: the preset's own dependsOn → edges to matching services already in the
+      // same environment (an edge new→existing means the new service depends on it).
+      const existing = servicesOf(nodes).filter((s) => s.data.env === activeEnv);
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       const deps = Array.isArray(def.dependsOn) ? def.dependsOn : [];
       const newEdges: Edge[] = deps
         .map((dep) => existing.find((s) => s.data.label === dep))
@@ -108,6 +152,7 @@ export function App() {
 
   const addLocal = useCallback(() => {
     const id = nextId("new-service");
+<<<<<<< HEAD
     place(
       {
         id,
@@ -118,6 +163,15 @@ export function App() {
       [],
     );
   }, [activeEnv, nodes, place]);
+=======
+    place({
+      id,
+      type: "service",
+      position: { x: 0, y: 0 },
+      data: { label: "new-service", kind: "service", local: true, env: activeEnv, def: { build: "./services/new-service" } },
+    });
+  }, [activeEnv, place]);
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
 
   const updateNode = useCallback(
     (id: string, mutate: (d: PlacedNodeData) => PlacedNodeData) => {
@@ -133,6 +187,7 @@ export function App() {
     [setNodes],
   );
 
+<<<<<<< HEAD
   // Move a node to another environment. `relocate` drops it into the target env's cluster
   // (inspector dropdown); a drag-reassign keeps the position where it was dropped.
   const reassignEnv = useCallback(
@@ -145,26 +200,43 @@ export function App() {
           return moved;
         }),
       );
+=======
+  const reassignEnv = useCallback(
+    (id: string, env: string) => {
+      rebuild((s) => s.map((n) => (n.id === id ? { ...n, data: { ...n.data, env } } : n)));
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       setSelection((sel) =>
         sel?.type === "node" && sel.node.id === id
           ? { type: "node", node: { ...sel.node, data: { ...sel.node.data, env } } }
           : sel,
       );
     },
+<<<<<<< HEAD
     [setNodes],
+=======
+    [rebuild],
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   );
 
   const onNodeDropInEnv = useCallback(
     (id: string, envName: string | null) => {
       const cur = servicesOf(nodes).find((s) => s.id === id)?.data.env;
+<<<<<<< HEAD
       if (envName && environments.includes(envName) && envName !== cur) reassignEnv(id, envName, false);
     },
     [environments, nodes, reassignEnv],
+=======
+      if (envName && environments.includes(envName) && envName !== cur) reassignEnv(id, envName);
+      else rebuild((s) => s); // snap back into the wave layout
+    },
+    [environments, nodes, reassignEnv, rebuild],
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   );
 
   const addEnvironment = useCallback(() => {
     const name = window.prompt("Environment name")?.trim();
     if (!name || environments.includes(name)) return;
+<<<<<<< HEAD
     setEnvironments((prev) => [...prev, name]);
     setEnvDeps((d) => ({ ...d, [name]: [] }));
     setActiveEnv(name);
@@ -177,21 +249,50 @@ export function App() {
 
   // Apply React Flow's changes; just clear the inspector if its node was deleted. Env boxes
   // recompute from the surviving nodes, so no relayout is needed.
+=======
+    const next = [...environments, name];
+    setEnvironments(next);
+    setEnvDeps((d) => ({ ...d, [name]: [] }));
+    setActiveEnv(name);
+    rebuild((s) => s, next);
+  }, [environments, rebuild]);
+
+  const onConnect = useCallback(
+    (connection: Connection) =>
+      setEdges((prev) => {
+        const next = addEdge(connection, prev);
+        setNodes((ns) => layout(servicesOf(ns), next, environments));
+        return next;
+      }),
+    [environments, setEdges, setNodes],
+  );
+
+  // Apply React Flow's changes, then re-run the layout whenever a node is removed so the
+  // environment boxes (and their service counts) reflect the deletion.
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   const handleNodesChange = useCallback<OnNodesChange<Node>>(
     (changes) => {
       onNodesChange(changes);
       const removed = changes.flatMap((c) => (c.type === "remove" ? [c.id] : []));
       if (removed.length) {
         setSelection((sel) => (sel?.type === "node" && removed.includes(sel.node.id) ? null : sel));
+<<<<<<< HEAD
       }
     },
     [onNodesChange],
+=======
+        setNodes((prev) => layout(servicesOf(prev), edges, environments));
+      }
+    },
+    [onNodesChange, setNodes, edges, environments],
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   );
 
   const onNodeClick = useCallback((_event: MouseEvent, node: Node) => {
     if (node.type === "service") setSelection({ type: "node", node: node as ServiceNodeType });
   }, []);
 
+<<<<<<< HEAD
   // Which env box (if any) sits under a flow-space point — used to file a dropped preset.
   const envAt = useCallback(
     (point: XYPosition): string | undefined => {
@@ -215,6 +316,18 @@ export function App() {
     [catalog, addPreset, envAt],
   );
 
+=======
+  const onDropPreset = useCallback(
+    (name: string) => {
+      const def = catalog?.services[name];
+      if (def) addPreset(name, def);
+    },
+    [catalog, addPreset],
+  );
+
+  // Import an exported project: pick kaupang.config.json + environments/*.json, rebuild the
+  // canvas. Auto-loads the config's catalog so $catalog services resolve to their presets.
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   const onImportFiles = useCallback(
     async (fileList: FileList) => {
       const files = Array.from(fileList);
@@ -252,7 +365,11 @@ export function App() {
       setActiveEnv(envs[0] ?? "market");
       setEnvDeps(r.envDeps);
       setEdges(r.edges);
+<<<<<<< HEAD
       setNodes(autoLayout(r.nodes, r.edges, envs)); // one-time arrange for a fresh import
+=======
+      setNodes(layout(r.nodes, r.edges, envs));
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       setProject(r.project);
       setSolution(r.solution);
       setSelection(null);
@@ -262,17 +379,39 @@ export function App() {
 
   const removeNode = useCallback(
     (id: string) => {
+<<<<<<< HEAD
       setEdges((prev) => prev.filter((e) => e.source !== id && e.target !== id));
       setNodes((prev) => prev.filter((n) => n.id !== id));
       setSelection((sel) => (sel?.type === "node" && sel.node.id === id ? null : sel));
     },
     [setEdges, setNodes],
+=======
+      setEdges((prevE) => {
+        const nextE = prevE.filter((e) => e.source !== id && e.target !== id);
+        setNodes((prevN) => layout(servicesOf(prevN).filter((s) => s.id !== id), nextE, environments));
+        return nextE;
+      });
+      setSelection((sel) => (sel?.type === "node" && sel.node.id === id ? null : sel));
+    },
+    [environments, setEdges, setNodes],
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   );
 
   // Detach a node from the graph: drop the edges into/out of it but keep the node.
   const unattachNode = useCallback(
+<<<<<<< HEAD
     (id: string) => setEdges((prev) => prev.filter((e) => e.source !== id && e.target !== id)),
     [setEdges],
+=======
+    (id: string) => {
+      setEdges((prevE) => {
+        const nextE = prevE.filter((e) => e.source !== id && e.target !== id);
+        setNodes((prevN) => layout(servicesOf(prevN), nextE, environments));
+        return nextE;
+      });
+    },
+    [environments, setEdges, setNodes],
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   );
 
   const onNodeContextMenu = useCallback(
@@ -293,21 +432,40 @@ export function App() {
     (env: string) => {
       const name = window.prompt("Rename environment", env)?.trim();
       if (!name || name === env || environments.includes(name)) return;
+<<<<<<< HEAD
       setEnvironments((prev) => prev.map((e) => (e === env ? name : e)));
+=======
+      const next = environments.map((e) => (e === env ? name : e));
+      setEnvironments(next);
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       setEnvDeps((d) =>
         Object.fromEntries(
           Object.entries(d).map(([k, v]) => [k === env ? name : k, v.map((x) => (x === env ? name : x))]),
         ),
       );
       setActiveEnv((a) => (a === env ? name : a));
+<<<<<<< HEAD
       setNodes((prev) => prev.map((n) => ((n.data as PlacedNodeData).env === env ? withEnv(n, name) : n)));
+=======
+      setNodes((prev) =>
+        layout(
+          servicesOf(prev).map((s) => (s.data.env === env ? { ...s, data: { ...s.data, env: name } } : s)),
+          edges,
+          next,
+        ),
+      );
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       setSelection((sel) =>
         sel?.type === "node" && sel.node.data.env === env
           ? { type: "node", node: { ...sel.node, data: { ...sel.node.data, env: name } } }
           : sel,
       );
     },
+<<<<<<< HEAD
     [environments, setNodes],
+=======
+    [environments, edges, setNodes],
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   );
 
   const removeEnv = useCallback(
@@ -321,7 +479,12 @@ export function App() {
       if (count > 0 && !window.confirm(`Move ${count} service${count === 1 ? "" : "s"} from “${env}” to “${fallback}”?`)) {
         return;
       }
+<<<<<<< HEAD
       setEnvironments((prev) => prev.filter((e) => e !== env));
+=======
+      const next = environments.filter((e) => e !== env);
+      setEnvironments(next);
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       setEnvDeps((d) =>
         Object.fromEntries(
           Object.entries(d)
@@ -330,14 +493,28 @@ export function App() {
         ),
       );
       setActiveEnv((a) => (a === env ? fallback : a));
+<<<<<<< HEAD
       setNodes((prev) => prev.map((n) => ((n.data as PlacedNodeData).env === env ? withEnv(n, fallback) : n)));
+=======
+      setNodes((prev) =>
+        layout(
+          servicesOf(prev).map((s) => (s.data.env === env ? { ...s, data: { ...s.data, env: fallback } } : s)),
+          edges,
+          next,
+        ),
+      );
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
       setSelection((sel) =>
         sel?.type === "node" && sel.node.data.env === env
           ? { type: "node", node: { ...sel.node, data: { ...sel.node.data, env: fallback } } }
           : sel,
       );
     },
+<<<<<<< HEAD
     [environments, nodes, setNodes],
+=======
+    [environments, nodes, edges, setNodes],
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
   );
 
   const onEnvContextMenu = useCallback(
@@ -407,7 +584,11 @@ export function App() {
           }}
         />
         <button
+<<<<<<< HEAD
           onClick={() => setNodes((prev) => autoLayout(servicesOf(prev), edges, environments))}
+=======
+          onClick={() => rebuild((s) => s)}
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
           className="ml-auto h-9 rounded-md border border-border bg-surface px-3 text-[13px] hover:border-border-strong"
         >
           Auto-layout
@@ -431,7 +612,11 @@ export function App() {
           services={catalog?.services ?? {}}
           loading={loading}
           error={error}
+<<<<<<< HEAD
           onAdd={(name, def) => addPreset(name, def)}
+=======
+          onAdd={addPreset}
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
           onPreview={(name, def) => setSelection({ type: "preset", name, def })}
           onNewLocal={addLocal}
         />
@@ -462,7 +647,11 @@ export function App() {
           </div>
           <div className="min-h-0 flex-1">
             <FlowCanvas
+<<<<<<< HEAD
               nodes={displayNodes}
+=======
+              nodes={nodes}
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
               edges={edges}
               onNodesChange={handleNodesChange}
               onEdgesChange={onEdgesChange}
@@ -478,7 +667,11 @@ export function App() {
         <Inspector
           selection={selection}
           environments={environments}
+<<<<<<< HEAD
           onReassign={(env) => selection?.type === "node" && reassignEnv(selection.node.id, env, true)}
+=======
+          onReassign={(env) => selection?.type === "node" && reassignEnv(selection.node.id, env)}
+>>>>>>> 9c0f0ed0279ad752db2cf216f4a419930ef6503d
           onUpdate={(mutate) => selection?.type === "node" && updateNode(selection.node.id, mutate)}
         />
       </main>
